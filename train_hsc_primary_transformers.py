@@ -691,24 +691,18 @@ Run on multiple machines:
         default="/home/shared/hsc/HSC/HSC_DR3/data/",
         help="directory with data",
     )
-    parser.add_argument(
-        "--output-dir", type=str, default="./", help="output directory to save model"
-    )
+    parser.add_argument("--output-dir", type=str, default="./", help="output directory to save model")
     parser.add_argument(
         "--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)"
     )
-    parser.add_argument(
-        "--cp", type=float, default=99.99, help="ceiling percentile for saturation cutoff"
-    )
+    parser.add_argument("--cp", type=float, default=99.99, help="ceiling percentile for saturation cutoff")
     parser.add_argument("--scheme", type=int, default=1, help="classification scheme")
     parser.add_argument("--alphas", type=float, nargs="*", help="weights for focal loss")
     parser.add_argument("--modname", type=str, default="./", help="")
     parser.add_argument("--stretch", type=float, default=0.5, help="lupton stretch")
     parser.add_argument("--Q", type=float, default=10, help="lupton Q")
     parser.add_argument("--A", type=float, default=1e3, help="scaling factor for int16")
-    parser.add_argument(
-        "--do-norm", action="store_true", help="normalize input image (ignore if lupton)"
-    )
+    parser.add_argument("--do-norm", action="store_true", help="normalize input image (ignore if lupton)")
     parser.add_argument("--dtype", type=int, default=8, help="data type of array")
     parser.add_argument("--do-fl", action="store_true", help="use focal loss")
 

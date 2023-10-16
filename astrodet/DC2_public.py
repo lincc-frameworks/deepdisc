@@ -63,9 +63,7 @@ def get_DC2_data(
     datas = []
 
     for f in filters:
-        filepath = os.path.join(
-            "/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"]
-        )
+        filepath = os.path.join("/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"])
 
         # print(f'Loading "{filepath}".')
         # try:

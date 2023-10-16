@@ -118,7 +118,9 @@ def main(dataset_names, train_head, args):
     cfg.INPUT.MAX_SIZE_TRAIN = 512
 
     cfg.MODEL.ANCHOR_GENERATOR.SIZES = [[8, 16, 32, 64, 128]]
-    cfg.SOLVER.IMS_PER_BATCH = 4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
+    cfg.SOLVER.IMS_PER_BATCH = (
+        4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
+    )
 
     cfg.OUTPUT_DIR = output_dir
     cfg.TEST.DETECTIONS_PER_IMAGE = 1000
@@ -147,9 +149,7 @@ def main(dataset_names, train_head, args):
 
     if train_head:
         # Step 1)
-        cfg.MODEL.BACKBONE.FREEZE_AT = (
-            4  # Initial re-training of the head layers (i.e. freeze the backbone)
-        )
+        cfg.MODEL.BACKBONE.FREEZE_AT = 4  # Initial re-training of the head layers (i.e. freeze the backbone)
         cfg.SOLVER.BASE_LR = 0.001
         cfg.SOLVER.STEPS = []  # do not decay learning rate for retraining head layers
         cfg.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
@@ -161,9 +161,7 @@ def main(dataset_names, train_head, args):
         if init_coco_weights:
             cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfgfile)  # Initialize from MS COCO
         else:
-            cfg.MODEL.WEIGHTS = os.path.join(
-                output_dir, "model_temp.pth"
-            )  # Initialize from a local weights
+            cfg.MODEL.WEIGHTS = os.path.join(output_dir, "model_temp.pth")  # Initialize from a local weights
 
         print(cfg)
 
@@ -204,9 +202,7 @@ def main(dataset_names, train_head, args):
         cfg.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
         cfg.SOLVER.WARMUP_ITERS = 0
         cfg.SOLVER.MAX_ITER = efinal  # for LR scheduling
-        cfg.MODEL.WEIGHTS = os.path.join(
-            output_dir, output_name + ".pth"
-        )  # Initialize from a local weights
+        cfg.MODEL.WEIGHTS = os.path.join(output_dir, output_name + ".pth")  # Initialize from a local weights
 
         _train_mapper = toolkit.train_mapper_cls(normalize=args.norm, ceil_percentile=args.cp)
         _test_mapper = toolkit.test_mapper_cls(normalize=args.norm, ceil_percentile=args.cp)
@@ -283,15 +279,11 @@ Run on multiple machines:
         default="/home/shared/hsc/decam/decam_data/",
         help="directory with data",
     )
-    parser.add_argument(
-        "--output-dir", type=str, default="./", help="output directory to save model"
-    )
+    parser.add_argument("--output-dir", type=str, default="./", help="output directory to save model")
     parser.add_argument(
         "--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)"
     )
-    parser.add_argument(
-        "--cp", type=float, default=99.99, help="ceiling percentile for saturation cutoff"
-    )
+    parser.add_argument("--cp", type=float, default=99.99, help="ceiling percentile for saturation cutoff")
 
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,

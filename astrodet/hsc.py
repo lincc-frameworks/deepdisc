@@ -159,9 +159,7 @@ def get_hsc_DR3_data(
     datas = []
 
     for f in filters:
-        filepath = os.path.join(
-            dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits"
-        )
+        filepath = os.path.join(dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits")
 
         print(f'Loading "{filepath}".')
         # try:

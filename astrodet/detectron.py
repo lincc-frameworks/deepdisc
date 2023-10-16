@@ -101,9 +101,7 @@ def plot_stretch_Q(
     fig, ax = plt.subplots(len(stretches), len(Qs), figsize=(9, 9))
     for i, stretch in enumerate(stretches):
         for j, Q in enumerate(Qs):
-            img = read_image(
-                d, normalize="lupton", stretch=stretch, Q=Q, ceil_percentile=ceil_percentile
-            )
+            img = read_image(d, normalize="lupton", stretch=stretch, Q=Q, ceil_percentile=ceil_percentile)
             # Scale the RGB channels for the image
             visualizer = Visualizer(img, metadata=astro_metadata)
             out = visualizer.draw_dataset_dict(d)
@@ -131,9 +129,7 @@ class SaveHook(HookBase):
 
     def after_train(self):
         print("saving", self.output_name)
-        self.trainer.checkpointer.save(
-            self.output_name
-        )  # Note: Set the name of the output model here
+        self.trainer.checkpointer.save(self.output_name)  # Note: Set the name of the output model here
 
 
 #
@@ -405,9 +401,7 @@ class KRandomAugmentationList(Augmentation):
     def __call__(self, aug_input) -> Transform:
         tfms = []
 
-        for x in self._setup_augs(
-            self.augs, self.k
-        ):  # generate auguments to use randomly on the fly
+        for x in self._setup_augs(self.augs, self.k):  # generate auguments to use randomly on the fly
             # print(x)
             tfm = x(aug_input)
             tfms.append(tfm)
