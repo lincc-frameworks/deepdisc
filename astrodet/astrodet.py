@@ -1,6 +1,6 @@
 import sys, os
 import numpy as np
-from detectron2.engine import DefaultTrainer,DefaultPredictor,SimpleTrainer
+from detectron2.engine import DefaultTrainer, DefaultPredictor, SimpleTrainer
 from detectron2.engine.defaults import create_ddp_model
 from typing import Dict, List, Optional, Mapping
 import detectron2.solver as solver
@@ -15,10 +15,12 @@ import weakref
 import copy
 import torch
 import time
+
 # Some basic setup:
 # Setup detectron2 logger
 import detectron2
 from detectron2.utils.logger import setup_logger
+
 setup_logger()
 from detectron2.utils.logger import log_every_n_seconds
 from detectron2.utils import comm
@@ -26,7 +28,8 @@ from detectron2.utils import comm
 # import some common libraries
 import numpy as np
 import os, json, cv2, random
-#from google.colab.patches import cv2_imshow
+
+# from google.colab.patches import cv2_imshow
 import matplotlib.pyplot as plt
 
 # import some common detectron2 utilities
@@ -34,7 +37,6 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
-
 
 
 import argparse
@@ -95,7 +97,8 @@ from iopath.common.file_io import file_lock
 import shutil
 
 import detectron2.utils.comm as comm
-#yufeng 6/11 import cocoevaluator
+
+# yufeng 6/11 import cocoevaluator
 from detectron2.evaluation.coco_evaluation import COCOEvaluator
 from detectron2.config import CfgNode
 from detectron2.data import MetadataCatalog
@@ -118,34 +121,33 @@ import gc
 
 
 def set_mpl_style():
-    
     """Function to set MPL style"""
-    
+
     fsize = 15
     tsize = 18
-    tdir = 'in'
+    tdir = "in"
     major = 5.0
     minor = 3.0
     lwidth = 1.8
     lhandle = 2.0
-    plt.style.use('default')
-    plt.rcParams['text.usetex'] = False
-    plt.rcParams['font.size'] = fsize
-    plt.rcParams['legend.fontsize'] = tsize
-    plt.rcParams['xtick.direction'] = tdir
-    plt.rcParams['ytick.direction'] = tdir
-    plt.rcParams['xtick.major.size'] = major
-    plt.rcParams['xtick.minor.size'] = minor
-    plt.rcParams['ytick.major.size'] = 5.0
-    plt.rcParams['ytick.minor.size'] = 3.0
-    plt.rcParams['axes.linewidth'] = lwidth
-    plt.rcParams['legend.handlelength'] = lhandle
-    
+    plt.style.use("default")
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["font.size"] = fsize
+    plt.rcParams["legend.fontsize"] = tsize
+    plt.rcParams["xtick.direction"] = tdir
+    plt.rcParams["ytick.direction"] = tdir
+    plt.rcParams["xtick.major.size"] = major
+    plt.rcParams["xtick.minor.size"] = minor
+    plt.rcParams["ytick.major.size"] = 5.0
+    plt.rcParams["ytick.minor.size"] = 3.0
+    plt.rcParams["axes.linewidth"] = lwidth
+    plt.rcParams["legend.handlelength"] = lhandle
+
     return
-    
+
 
 class NewAstroTrainer(SimpleTrainer):
-    '''
+    """
     Use this for models that use yacs cfg files
 
     Parameters
@@ -157,43 +159,39 @@ class NewAstroTrainer(SimpleTrainer):
     optimizer:
         The learning optimizer
     cfg: yacs file
-        The model config 
+        The model config
 
 
-    '''
+    """
 
     def __init__(self, model, data_loader, optimizer, cfg):
         super().__init__(model, data_loader, optimizer)
-        #super().__init__(model, data_loader, optimizer)
+        # super().__init__(model, data_loader, optimizer)
 
         # Borrowed from DefaultTrainer constructor
         # see https://detectron2.readthedocs.io/en/latest/_modules/detectron2/engine/defaults.html#DefaultTrainer
         self.checkpointer = checkpointer.DetectionCheckpointer(
             # Assume you want to save checkpoints together with logs/statistics
             model,
-            cfg.OUTPUT_DIR
+            cfg.OUTPUT_DIR,
         )
         # load weights
         self.checkpointer.load(cfg.MODEL.WEIGHTS)
-        
-        # record loss over iteration 
+
+        # record loss over iteration
         self.lossList = []
         self.vallossList = []
 
         self.period = 20
         self.iterCount = 0
-        
-        self.scheduler = self.build_lr_scheduler(cfg, optimizer)
-        self.valloss=0
 
-        
-    
-    #Note: print out loss over p iterations
-    def set_period(self,p):
+        self.scheduler = self.build_lr_scheduler(cfg, optimizer)
+        self.valloss = 0
+
+    # Note: print out loss over p iterations
+    def set_period(self, p):
         self.period = p
 
-    
-        
     # Copied directly from SimpleTrainer, add in custom manipulation with the loss
     # see https://detectron2.readthedocs.io/en/latest/_modules/detectron2/engine/train_loop.html#SimpleTrainer
     def run_step(self):
@@ -204,7 +202,7 @@ class NewAstroTrainer(SimpleTrainer):
         data = next(self._data_loader_iter)
         # Note: in training mode, model() returns loss
         loss_dict = self.model(data)
-        #print('Loss dict',loss_dict.values())
+        # print('Loss dict',loss_dict.values())
         if isinstance(loss_dict, torch.Tensor):
             losses = loss_dict
             loss_dict = {"total_loss": loss_dict}
@@ -213,22 +211,31 @@ class NewAstroTrainer(SimpleTrainer):
             all_losses = [l.cpu().detach().item() for l in loss_dict.values()]
         self.optimizer.zero_grad()
         losses.backward()
-        
-        
-        #self._write_metrics(loss_dict,data_time)
+
+        # self._write_metrics(loss_dict,data_time)
 
         self.optimizer.step()
-        
-        
+
         self.lossList.append(losses.cpu().detach().numpy())
         if self.iterCount % self.period == 0 and comm.is_main_process():
-            #print("Iteration: ", self.iterCount, " time: ", data_time," loss: ",losses.cpu().detach().numpy(), "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
-            print("Iteration: ", self.iterCount, " time: ", data_time,loss_dict.keys(),all_losses, "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
+            # print("Iteration: ", self.iterCount, " time: ", data_time," loss: ",losses.cpu().detach().numpy(), "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
+            print(
+                "Iteration: ",
+                self.iterCount,
+                " time: ",
+                data_time,
+                loss_dict.keys(),
+                all_losses,
+                "val loss: ",
+                self.valloss,
+                "lr: ",
+                self.scheduler.get_lr(),
+            )
 
         del data
         gc.collect()
         torch.cuda.empty_cache()
-        
+
     @classmethod
     def build_lr_scheduler(cls, cfg, optimizer):
         """
@@ -236,17 +243,14 @@ class NewAstroTrainer(SimpleTrainer):
         Overwrite it if you'd like a different scheduler.
         """
         return build_lr_scheduler(cfg, optimizer)
-    
-    
-    def add_val_loss(self,val_loss):
+
+    def add_val_loss(self, val_loss):
         """
         It now calls :func:`detectron2.solver.build_lr_scheduler`.
         Overwrite it if you'd like a different scheduler.
         """
-        
+
         self.vallossList.append(val_loss)
-
-
 
 
 class AstroPredictor:
@@ -272,15 +276,15 @@ class AstroPredictor:
         outputs = pred(inputs)
     """
 
-    def __init__(self, cfg, lazy=False,cfglazy=None):
+    def __init__(self, cfg, lazy=False, cfglazy=None):
         if lazy:
             self.cfg = cfg.clone()  # cfg can be modified by model
-            self.cfglazy = cfglazy 
+            self.cfglazy = cfglazy
             self.model = instantiate(self.cfglazy.model)
             self.model.to(self.cfglazy.train.device)
             self.model = create_ddp_model(self.model)
             self.model.eval()
-            checkpointer = DetectionCheckpointer(self.model,cfg.OUTPUT_DIR)
+            checkpointer = DetectionCheckpointer(self.model, cfg.OUTPUT_DIR)
             checkpointer.load(cfglazy.train.init_checkpoint)
         else:
             self.cfg = cfg.clone()  # cfg can be modified by model
@@ -314,88 +318,86 @@ class AstroPredictor:
                 # whether the model expects BGR inputs or RGB
                 original_image = original_image[:, :, ::-1]
             height, width = original_image.shape[:2]
-            #image = self.aug.get_transform(original_image).apply_image(original_image)
+            # image = self.aug.get_transform(original_image).apply_image(original_image)
             image = torch.as_tensor(original_image.astype("float32").transpose(2, 0, 1))
 
             inputs = {"image": image, "height": height, "width": width}
             predictions = self.model([inputs])[0]
             return predictions
-            
-            
-            
-class COCOeval_opt_custom(COCOeval_opt):
-    '''
 
-    '''
-    
+
+class COCOeval_opt_custom(COCOeval_opt):
+    """ """
+
     def evaluate_custom(self):
-        '''
+        """
         Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
         :return: None
-        '''
+        """
         tic = time.time()
-        print('Running per image evaluation...')
+        print("Running per image evaluation...")
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
-            p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
-            print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
-        print('Evaluate annotation type *{}*'.format(p.iouType))
+            p.iouType = "segm" if p.useSegm == 1 else "bbox"
+            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
+        print("Evaluate annotation type *{}*".format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
         p.maxDets = sorted(p.maxDets)
-        self.params=p
+        self.params = p
         print(p.areaRng)
         self._prepare()
         # loop through images, area range, max detection number
         catIds = p.catIds if p.useCats else [-1]
 
-        if p.iouType == 'segm' or p.iouType == 'bbox':
+        if p.iouType == "segm" or p.iouType == "bbox":
             computeIoU = self.computeIoU
-        elif p.iouType == 'keypoints':
+        elif p.iouType == "keypoints":
             computeIoU = self.computeOks
-        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
-                        for imgId in p.imgIds
-                        for catId in catIds}
+        self.ious = {
+            (imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds
+        }
         evaluateImg = self.evaluateImg
         maxDet = p.maxDets[-1]
-        self.evalImgs = [evaluateImg(imgId, catId, areaRng, maxDet)
-                 for catId in catIds
-                 for areaRng in p.areaRng
-                 for imgId in p.imgIds
-             ]
+        self.evalImgs = [
+            evaluateImg(imgId, catId, areaRng, maxDet)
+            for catId in catIds
+            for areaRng in p.areaRng
+            for imgId in p.imgIds
+        ]
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
-        print('DONE (t={:0.2f}s).'.format(toc-tic))
+        print("DONE (t={:0.2f}s).".format(toc - tic))
 
-    def accumulate_custom(self, p = None):
-        '''
+    def accumulate_custom(self, p=None):
+        """
         YL: Override in order to put in some output commands
-        
+
         Accumulate per image evaluation results and store the result in self.eval
         :param p: input params for evaluation
         :return: None
-        '''
-        print('Accumulating evaluation results...')
+        """
+        print("Accumulating evaluation results...")
         tic = time.time()
         if not self.evalImgs:
-            print('Please run evaluate() first')
+            print("Please run evaluate() first")
         # allows input customized parameters
         if p is None:
             p = self.params
         p.catIds = p.catIds if p.useCats == 1 else [-1]
-        T           = len(p.iouThrs)
-        R           = len(p.recThrs)
-        K           = len(p.catIds) if p.useCats else 1
-        A           = len(p.areaRng)
-        M           = len(p.maxDets)
-        precision   = -np.ones((T,R,K,A,M)) # -1 for the precision of absent categories
-        recall      = -np.ones((T,K,A,M))
-        scores      = -np.ones((T,R,K,A,M))
-        
-        precision_raw   = -np.ones((T,R,K,A,M))
-        recall_raw      = -np.ones((T,R,K,A,M))
+        T = len(p.iouThrs)
+        R = len(p.recThrs)
+        K = len(p.catIds) if p.useCats else 1
+        A = len(p.areaRng)
+        M = len(p.maxDets)
+        precision = -np.ones((T, R, K, A, M))  # -1 for the precision of absent categories
+        recall = -np.ones((T, K, A, M))
+        scores = -np.ones((T, R, K, A, M))
+
+        precision_raw = -np.ones((T, R, K, A, M))
+        recall_raw = -np.ones((T, R, K, A, M))
 
         # create dictionary for future indexing
         _pe = self._paramsEval
@@ -405,217 +407,227 @@ class COCOeval_opt_custom(COCOeval_opt):
         setM = set(_pe.maxDets)
         setI = set(_pe.imgIds)
         # get inds to evaluate
-        k_list = [n for n, k in enumerate(p.catIds)  if k in setK]
+        k_list = [n for n, k in enumerate(p.catIds) if k in setK]
         m_list = [m for n, m in enumerate(p.maxDets) if m in setM]
         a_list = [n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA]
-        i_list = [n for n, i in enumerate(p.imgIds)  if i in setI]
+        i_list = [n for n, i in enumerate(p.imgIds) if i in setI]
         I0 = len(_pe.imgIds)
         A0 = len(_pe.areaRng)
         # retrieve E at each category, area range, and max number of detections
         for k, k0 in enumerate(k_list):
-            Nk = k0*A0*I0
+            Nk = k0 * A0 * I0
             for a, a0 in enumerate(a_list):
-                Na = a0*I0
+                Na = a0 * I0
                 for m, maxDet in enumerate(m_list):
                     E = [self.evalImgs[Nk + Na + i] for i in i_list]
                     E = [e for e in E if not e is None]
                     if len(E) == 0:
                         continue
-                    dtScores = np.concatenate([e['dtScores'][0:maxDet] for e in E])
+                    dtScores = np.concatenate([e["dtScores"][0:maxDet] for e in E])
 
                     # different sorting method generates slightly different results.
                     # mergesort is used to be consistent as Matlab implementation.
-                    inds = np.argsort(-dtScores, kind='mergesort')
+                    inds = np.argsort(-dtScores, kind="mergesort")
                     dtScoresSorted = dtScores[inds]
 
-                    dtm  = np.concatenate([e['dtMatches'][:,0:maxDet] for e in E], axis=1)[:,inds]
-                    dtIg = np.concatenate([e['dtIgnore'][:,0:maxDet]  for e in E], axis=1)[:,inds]
-                    gtIg = np.concatenate([e['gtIgnore'] for e in E])
+                    dtm = np.concatenate([e["dtMatches"][:, 0:maxDet] for e in E], axis=1)[:, inds]
+                    dtIg = np.concatenate([e["dtIgnore"][:, 0:maxDet] for e in E], axis=1)[:, inds]
+                    gtIg = np.concatenate([e["gtIgnore"] for e in E])
 
-                    npig = np.count_nonzero(gtIg==0)
-                    #print('npig', npig)
+                    npig = np.count_nonzero(gtIg == 0)
+                    # print('npig', npig)
                     if npig == 0:
                         continue
-                    tps = np.logical_and(               dtm,  np.logical_not(dtIg) )
-                    fps = np.logical_and(np.logical_not(dtm), np.logical_not(dtIg) )
-                    #print('tps cumsum', np.cumsum(tps))
+                    tps = np.logical_and(dtm, np.logical_not(dtIg))
+                    fps = np.logical_and(np.logical_not(dtm), np.logical_not(dtIg))
+                    # print('tps cumsum', np.cumsum(tps))
                     tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
                     fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
-                    #print('TP and FP sums', tp_sum.shape, fp_sum.shape)
+                    # print('TP and FP sums', tp_sum.shape, fp_sum.shape)
                     for t, (tp, fp) in enumerate(zip(tp_sum, fp_sum)):
                         tp = np.array(tp)
                         fp = np.array(fp)
                         nd = len(tp)
                         rc = tp / npig
-                        pr = tp / (fp+tp+np.spacing(1))
-                        q  = np.zeros((R,))
+                        pr = tp / (fp + tp + np.spacing(1))
+                        q = np.zeros((R,))
                         ss = np.zeros((R,))
                         if nd:
-                            recall[t,k,a,m] = rc[-1]
+                            recall[t, k, a, m] = rc[-1]
                         else:
-                            recall[t,k,a,m] = 0
+                            recall[t, k, a, m] = 0
 
                         # numpy is slow without cython optimization for accessing elements
                         # use python array gets significant speed improvement
-                        pr = pr.tolist(); q = q.tolist()
+                        pr = pr.tolist()
+                        q = q.tolist()
 
-                        for i in range(nd-1, 0, -1):
-                            if pr[i] > pr[i-1]:
-                                pr[i-1] = pr[i]
+                        for i in range(nd - 1, 0, -1):
+                            if pr[i] > pr[i - 1]:
+                                pr[i - 1] = pr[i]
 
-                        inds = np.searchsorted(rc, p.recThrs, side='left')
+                        inds = np.searchsorted(rc, p.recThrs, side="left")
                         try:
                             for ri, pi in enumerate(inds):
                                 q[ri] = pr[pi]
                                 ss[ri] = dtScoresSorted[pi]
                         except:
                             pass
-                        precision[t,:,k,a,m] = np.array(q)
-                        scores[t,:,k,a,m] = np.array(ss)
+                        precision[t, :, k, a, m] = np.array(q)
+                        scores[t, :, k, a, m] = np.array(ss)
         self.eval = {
-            'params': p,
-            'counts': [T, R, K, A, M],
-            'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'precision': precision,
-            'recall':   recall,
-            'scores': scores,
+            "params": p,
+            "counts": [T, R, K, A, M],
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "precision": precision,
+            "recall": recall,
+            "scores": scores,
         }
         toc = time.time()
-        print('DONE (t={:0.2f}s).'.format( toc-tic))
-
+        print("DONE (t={:0.2f}s).".format(toc - tic))
 
     def summarize_custom(self):
-        '''
+        """
         Compute and display summary metrics for evaluation results.
         Note this functin can *only* be applied on the default parameter setting
-        '''
-        def _summarize( ap=1, iouThr=None, areaRng='all', maxDets=100 ):
+        """
+
+        def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100):
             p = self.params
-            iStr = ' {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'
-            titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
-            typeStr = '(AP)' if ap==1 else '(AR)'
-            iouStr = '{:0.2f}:{:0.2f}'.format(p.iouThrs[0], p.iouThrs[-1]) \
-                if iouThr is None else '{:0.2f}'.format(iouThr)
+            iStr = " {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}"
+            titleStr = "Average Precision" if ap == 1 else "Average Recall"
+            typeStr = "(AP)" if ap == 1 else "(AR)"
+            iouStr = (
+                "{:0.2f}:{:0.2f}".format(p.iouThrs[0], p.iouThrs[-1])
+                if iouThr is None
+                else "{:0.2f}".format(iouThr)
+            )
 
             aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng]
             mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
             if ap == 1:
                 # dimension of precision: [TxRxKxAxM]
-                s = self.eval['precision']
+                s = self.eval["precision"]
                 # IoU
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:,:,:,aind,mind]
+                s = s[:, :, :, aind, mind]
             else:
                 # dimension of recall: [TxKxAxM]
-                s = self.eval['recall']
+                s = self.eval["recall"]
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:,:,aind,mind]
-            if len(s[s>-1])==0:
+                s = s[:, :, aind, mind]
+            if len(s[s > -1]) == 0:
                 mean_s = -1
             else:
-                mean_s = np.mean(s[s>-1])
+                mean_s = np.mean(s[s > -1])
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             return mean_s
+
         def _summarizeDets():
             stats = np.zeros((12,))
             stats[0] = _summarize(1)
-            stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
-            stats[2] = _summarize(1, iouThr=.75, maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1, areaRng='small', iouThr=0.5, maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(1, areaRng='medium', iouThr=0.5, maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(1, areaRng='large', iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[1] = _summarize(1, iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[2] = _summarize(1, iouThr=0.75, maxDets=self.params.maxDets[2])
+            stats[3] = _summarize(1, areaRng="small", iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[4] = _summarize(1, areaRng="medium", iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[5] = _summarize(1, areaRng="large", iouThr=0.5, maxDets=self.params.maxDets[2])
             stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
             stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
             stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
-            stats[9] = _summarize(0, areaRng='small', maxDets=self.params.maxDets[2])
-            stats[10] = _summarize(0, areaRng='medium', maxDets=self.params.maxDets[2])
-            stats[11] = _summarize(0, areaRng='large', maxDets=self.params.maxDets[2])
+            stats[9] = _summarize(0, areaRng="small", maxDets=self.params.maxDets[2])
+            stats[10] = _summarize(0, areaRng="medium", maxDets=self.params.maxDets[2])
+            stats[11] = _summarize(0, areaRng="large", maxDets=self.params.maxDets[2])
             return stats
+
         def _summarizeKps():
             stats = np.zeros((10,))
             stats[0] = _summarize(1, maxDets=20)
-            stats[1] = _summarize(1, maxDets=20, iouThr=.5)
-            stats[2] = _summarize(1, maxDets=20, iouThr=.75)
-            stats[3] = _summarize(1, maxDets=20, areaRng='medium')
-            stats[4] = _summarize(1, maxDets=20, areaRng='large')
+            stats[1] = _summarize(1, maxDets=20, iouThr=0.5)
+            stats[2] = _summarize(1, maxDets=20, iouThr=0.75)
+            stats[3] = _summarize(1, maxDets=20, areaRng="medium")
+            stats[4] = _summarize(1, maxDets=20, areaRng="large")
             stats[5] = _summarize(0, maxDets=20)
-            stats[6] = _summarize(0, maxDets=20, iouThr=.5)
-            stats[7] = _summarize(0, maxDets=20, iouThr=.75)
-            stats[8] = _summarize(0, maxDets=20, areaRng='medium')
-            stats[9] = _summarize(0, maxDets=20, areaRng='large')
+            stats[6] = _summarize(0, maxDets=20, iouThr=0.5)
+            stats[7] = _summarize(0, maxDets=20, iouThr=0.75)
+            stats[8] = _summarize(0, maxDets=20, areaRng="medium")
+            stats[9] = _summarize(0, maxDets=20, areaRng="large")
             return stats
+
         if not self.eval:
-            raise Exception('Please run accumulate() first')
+            raise Exception("Please run accumulate() first")
         iouType = self.params.iouType
-        if iouType == 'segm' or iouType == 'bbox':
+        if iouType == "segm" or iouType == "bbox":
             summarize = _summarizeDets
-        elif iouType == 'keypoints':
+        elif iouType == "keypoints":
             summarize = _summarizeKps
         self.stats = summarize()
 
 
-
-
 def _evaluate_predictions_on_coco(
-        coco_gt, coco_results, iou_type, kpt_oks_sigmas=None, use_fast_impl=True, img_ids=None, max_dets_per_image=None, 
-        areaRng=None
-    ):
-    
-        #Evaluate the coco results using COCOEval API.
-        assert len(coco_results) > 0
-        print("_evaluate_predictions_on_coco")
-        #6/27 this override function is not called
-        if iou_type == "segm":
-            coco_results = copy.deepcopy(coco_results)
-            # When evaluating mask AP, if the results contain bbox, cocoapi will
-            # use the box area as the area of the instance, instead of the mask area.
-            # This leads to a different definition of small/medium/large.
-            # We remove the bbox field to let mask AP use mask area.
-            for c in coco_results:
-                c.pop("bbox", None)
-        
-        coco_dt = coco_gt.loadRes(coco_results)
-        coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(coco_gt, coco_dt, iou_type)
-        # change COCOeval_opt_custom to COCO_eval_opt to call the default function
-        print("++++++++++",type(coco_eval))
-        if img_ids is not None:
-            coco_eval.params.imgIds = img_ids
-            
-        
-        if iou_type == "keypoints":
-            # Use the COCO default keypoint OKS sigmas unless overrides are specified
-            if kpt_oks_sigmas:
-                assert hasattr(coco_eval.params, "kpt_oks_sigmas"), "pycocotools is too old!"
-                coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
-            # COCOAPI requires every detection and every gt to have keypoints, so
-            # we just take the first entry from both
-            num_keypoints_dt = len(coco_results[0]["keypoints"]) // 3
-            num_keypoints_gt = len(next(iter(coco_gt.anns.values()))["keypoints"]) // 3
-            num_keypoints_oks = len(coco_eval.params.kpt_oks_sigmas)
-            assert num_keypoints_oks == num_keypoints_dt == num_keypoints_gt, (
-                f"[COCOEvaluator] Prediction contain {num_keypoints_dt} keypoints. "
-                f"Ground truth contains {num_keypoints_gt} keypoints. "
-                f"The length of cfg.TEST.KEYPOINT_OKS_SIGMAS is {num_keypoints_oks}. "
-                "They have to agree with each other. For meaning of OKS, please refer to "
-                "http://cocodataset.org/#keypoints-eval."
-            )
-        
-        coco_eval.params.maxDets = max_dets_per_image # by default it is [1,10,100], our datasets have more than 100 instances
-        coco_eval.params.areaRng=areaRng
-        coco_eval.evaluate_custom()
-        coco_eval.accumulate_custom()
-        coco_eval.summarize_custom()
-        #coco_eval.summarize()
+    coco_gt,
+    coco_results,
+    iou_type,
+    kpt_oks_sigmas=None,
+    use_fast_impl=True,
+    img_ids=None,
+    max_dets_per_image=None,
+    areaRng=None,
+):
+    # Evaluate the coco results using COCOEval API.
+    assert len(coco_results) > 0
+    print("_evaluate_predictions_on_coco")
+    # 6/27 this override function is not called
+    if iou_type == "segm":
+        coco_results = copy.deepcopy(coco_results)
+        # When evaluating mask AP, if the results contain bbox, cocoapi will
+        # use the box area as the area of the instance, instead of the mask area.
+        # This leads to a different definition of small/medium/large.
+        # We remove the bbox field to let mask AP use mask area.
+        for c in coco_results:
+            c.pop("bbox", None)
 
-        return coco_eval
-    
+    coco_dt = coco_gt.loadRes(coco_results)
+    coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(coco_gt, coco_dt, iou_type)
+    # change COCOeval_opt_custom to COCO_eval_opt to call the default function
+    print("++++++++++", type(coco_eval))
+    if img_ids is not None:
+        coco_eval.params.imgIds = img_ids
+
+    if iou_type == "keypoints":
+        # Use the COCO default keypoint OKS sigmas unless overrides are specified
+        if kpt_oks_sigmas:
+            assert hasattr(coco_eval.params, "kpt_oks_sigmas"), "pycocotools is too old!"
+            coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
+        # COCOAPI requires every detection and every gt to have keypoints, so
+        # we just take the first entry from both
+        num_keypoints_dt = len(coco_results[0]["keypoints"]) // 3
+        num_keypoints_gt = len(next(iter(coco_gt.anns.values()))["keypoints"]) // 3
+        num_keypoints_oks = len(coco_eval.params.kpt_oks_sigmas)
+        assert num_keypoints_oks == num_keypoints_dt == num_keypoints_gt, (
+            f"[COCOEvaluator] Prediction contain {num_keypoints_dt} keypoints. "
+            f"Ground truth contains {num_keypoints_gt} keypoints. "
+            f"The length of cfg.TEST.KEYPOINT_OKS_SIGMAS is {num_keypoints_oks}. "
+            "They have to agree with each other. For meaning of OKS, please refer to "
+            "http://cocodataset.org/#keypoints-eval."
+        )
+
+    coco_eval.params.maxDets = (
+        max_dets_per_image  # by default it is [1,10,100], our datasets have more than 100 instances
+    )
+    coco_eval.params.areaRng = areaRng
+    coco_eval.evaluate_custom()
+    coco_eval.accumulate_custom()
+    coco_eval.summarize_custom()
+    # coco_eval.summarize()
+
+    return coco_eval
 
 
-def convert_to_coco_dict(dataset_name,mbins,mind,logger):
+def convert_to_coco_dict(dataset_name, mbins, mind, logger):
     """
     Convert an instance detection/segmentation or keypoint detection dataset
     in detectron2's standard format into COCO json format.
@@ -721,18 +733,22 @@ def convert_to_coco_dict(dataset_name,mbins,mind,logger):
             coco_annotation["bbox"] = [round(float(x), 3) for x in bbox]
             coco_annotation["area"] = float(area)
             coco_annotation["iscrowd"] = int(annotation.get("iscrowd", 0))
-            #coco_annotation["iscrowd"] = 1 if annotation.get('imag')>24 else 0
-            #coco_annotation["ignore"] = 1 if annotation.get('imag')>24 else 0
-            if mind != len(mbins)-1 and mind != -1:
-                coco_annotation["ignore"] = 0 if annotation.get('imag')>mbins[mind] and annotation.get('imag')<=mbins[mind+1] else 1
-            elif mind==len(mbins)-1:
-                coco_annotation["ignore"] = 0 if annotation.get('imag')>mbins[mind] else 1
+            # coco_annotation["iscrowd"] = 1 if annotation.get('imag')>24 else 0
+            # coco_annotation["ignore"] = 1 if annotation.get('imag')>24 else 0
+            if mind != len(mbins) - 1 and mind != -1:
+                coco_annotation["ignore"] = (
+                    0
+                    if annotation.get("imag") > mbins[mind]
+                    and annotation.get("imag") <= mbins[mind + 1]
+                    else 1
+                )
+            elif mind == len(mbins) - 1:
+                coco_annotation["ignore"] = 0 if annotation.get("imag") > mbins[mind] else 1
             else:
                 coco_annotation["ignore"] = int(annotation.get("ignore", 0))
 
             coco_annotation["category_id"] = int(reverse_id_mapper(annotation["category_id"]))
-            
-            
+
             # Add optional fields
             if "keypoints" in annotation:
                 coco_annotation["keypoints"] = keypoints
@@ -763,7 +779,7 @@ def convert_to_coco_dict(dataset_name,mbins,mind,logger):
     return coco_dict
 
 
-def convert_to_coco_json(dataset_name, output_file, mbins=[0,1],mind=-1, allow_cached=True):
+def convert_to_coco_json(dataset_name, output_file, mbins=[0, 1], mind=-1, allow_cached=True):
     """
     Converts dataset into COCO format and saves it to a json file.
     dataset_name must be registered in DatasetCatalog and in detectron2's standard format.
@@ -786,7 +802,7 @@ def convert_to_coco_json(dataset_name, output_file, mbins=[0,1],mind=-1, allow_c
             )
         else:
             logger.info(f"Converting annotations of dataset '{dataset_name}' to COCO format ...)")
-            coco_dict = convert_to_coco_dict(dataset_name,mbins,mind,logger)
+            coco_dict = convert_to_coco_dict(dataset_name, mbins, mind, logger)
 
             logger.info(f"Caching COCO format annotations at '{output_file}' ...")
             tmp_file = output_file + ".tmp"
@@ -794,11 +810,12 @@ def convert_to_coco_json(dataset_name, output_file, mbins=[0,1],mind=-1, allow_c
                 json.dump(coco_dict, f)
             shutil.move(tmp_file, output_file)
 
+
 class COCOEvaluatorRecall(COCOEvaluator):
 
     """
     Override this class in order to call the custom function above
-    
+
     Evaluate AR for object proposals, AP for instance detection/segmentation, AP
     for keypoint detection outputs using COCO's metrics.
     See http://cocodataset.org/#detection-eval and
@@ -809,7 +826,6 @@ class COCOEvaluatorRecall(COCOEvaluator):
     In addition to COCO, this evaluator is able to support any bounding box detection,
     instance segmentation, or keypoint detection dataset.
     """
-
 
     def __init__(
         self,
@@ -881,9 +897,9 @@ class COCOEvaluatorRecall(COCOEvaluator):
         self._max_dets_per_image = max_dets_per_image
 
         if areaRng is None:
-            areaRng=[[0, 10000000000.0], [0, 1024], [1024, 9216], [9216, 10000000000.0]]  
+            areaRng = [[0, 10000000000.0], [0, 1024], [1024, 9216], [9216, 10000000000.0]]
         self._areaRng = areaRng
-        
+
         if tasks is not None and isinstance(tasks, CfgNode):
             kpt_oks_sigmas = (
                 tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
@@ -911,7 +927,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
             self._metadata.json_file = cache_path
             convert_to_coco_json(dataset_name, cache_path, allow_cached=allow_cached_coco)
         json_file = PathManager.get_local_path(self._metadata.json_file)
-        print('Loading ', json_file)
+        print("Loading ", json_file)
         with contextlib.redirect_stdout(io.StringIO()):
             self._coco_api = COCO(json_file)
 
@@ -921,13 +937,11 @@ class COCOEvaluatorRecall(COCOEvaluator):
         if self._do_evaluation:
             self._kpt_oks_sigmas = kpt_oks_sigmas
 
-
     def _eval_predictions(self, predictions, img_ids=None):
-        
-        #Evaluate predictions. Fill self._results with the metrics of the tasks.
-        
+        # Evaluate predictions. Fill self._results with the metrics of the tasks.
+
         self._logger.info("Preparing results for COCO format ...")
-        #for splitting by magnitude, take the instances that are matched to objects with that mag thresh
+        # for splitting by magnitude, take the instances that are matched to objects with that mag thresh
         coco_results = list(itertools.chain(*[x["instances"] for x in predictions]))
         tasks = self._tasks or self._tasks_from_predictions(coco_results)
 
@@ -965,7 +979,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
             )
         )
 
-        self.coco_eval_list=[]
+        self.coco_eval_list = []
 
         for task in sorted(tasks):
             assert task in {"bbox", "segm", "keypoints"}, f"Got unknown task: {task}!"
@@ -975,11 +989,11 @@ class COCOEvaluatorRecall(COCOEvaluator):
                     self._coco_api,
                     coco_results,
                     task,
-                    kpt_oks_sigmas = None,
+                    kpt_oks_sigmas=None,
                     use_fast_impl=self._use_fast_impl,
                     img_ids=img_ids,
                     max_dets_per_image=self._max_dets_per_image,
-                    areaRng=self._areaRng
+                    areaRng=self._areaRng,
                 )
                 if len(coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
@@ -991,13 +1005,9 @@ class COCOEvaluatorRecall(COCOEvaluator):
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
             self._results[task] = res
-            
-    
-    
-    
+
     def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
-        
-        #Derive the desired score numbers from summarized COCOeval.
+        # Derive the desired score numbers from summarized COCOeval.
 
         """Args:
             coco_eval (None or COCOEval): None represents no predictions from model.
@@ -1007,13 +1017,13 @@ class COCOEvaluatorRecall(COCOEvaluator):
 
         Returns:
             a dict of {metric name: score}"""
-        
+
         print("++++++++derive_coco_results")
         metrics = {
             "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
             "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
             "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
-            }[iou_type]
+        }[iou_type]
 
         if coco_eval is None:
             self._logger.warn("No predictions from the model!")
@@ -1023,14 +1033,14 @@ class COCOEvaluatorRecall(COCOEvaluator):
         results = {
             metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
             for idx, metric in enumerate(metrics)
-            }
+        }
         self._logger.info(
             "Evaluation results for {}: \n".format(iou_type) + create_small_table(results)
-            )
+        )
         if not np.isfinite(sum(results.values())):
             self._logger.info("Some metrics cannot be computed and is shown as NaN.")
 
-        #if class_names is None or len(class_names) <= 1:
+        # if class_names is None or len(class_names) <= 1:
         #    return results
         # Compute per-category AP
         # from https://github.com/facebookresearch/Detectron/blob/a6a835f5b8208c45d0dce217ce9bbda915f44df7/detectron/datasets/json_dataset_evaluator.py#L222-L252 # noqa
@@ -1059,19 +1069,28 @@ class COCOEvaluatorRecall(COCOEvaluator):
             floatfmt=".3f",
             headers=["category", "AP"] * (N_COLS // 2),
             numalign="left",
-            )
+        )
         self._logger.info("Per-category {} AP: \n".format(iou_type) + table)
-        
+
         # Save the precision-recall per category
         results["results_per_category"] = precision_per_category
 
         results.update({"AP-" + name: ap for name, ap in results_per_category})
-        return results 
+        return results
 
 
-def read_image_hsc(filenames, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_percentile=99.995, dtype=np.uint8, A=1e4, do_norm=False):
-    
-    '''
+def read_image_hsc(
+    filenames,
+    normalize="lupton",
+    stretch=0.5,
+    Q=10,
+    m=0,
+    ceil_percentile=99.995,
+    dtype=np.uint8,
+    A=1e4,
+    do_norm=False,
+):
+    """
     Read in a formatted HSC image
 
     Parameters
@@ -1088,177 +1107,172 @@ def read_image_hsc(filenames, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_p
         data type of the output array
     A: float
         scaling factor for zscoring
-    do_norm: boolean   
+    do_norm: boolean
         For normalizing top fit dtype range
 
     Returns
     -------
     Scaled image
 
-    '''
-    
-    def norm(z,r,g):
+    """
+
+    def norm(z, r, g):
         max_RGB = np.nanpercentile([z, r, g], ceil_percentile)
         print(max_RGB)
 
-        max_z=np.nanpercentile([z], ceil_percentile)
-        max_r=np.nanpercentile([r], ceil_percentile)
-        max_g=np.nanpercentile([g], ceil_percentile)
+        max_z = np.nanpercentile([z], ceil_percentile)
+        max_r = np.nanpercentile([r], ceil_percentile)
+        max_g = np.nanpercentile([g], ceil_percentile)
 
-        #z = np.clip(z,None,max_RGB)
-        #r = np.clip(r,None,max_RGB)
-        #g = np.clip(g,None,max_RGB)
+        # z = np.clip(z,None,max_RGB)
+        # r = np.clip(r,None,max_RGB)
+        # g = np.clip(g,None,max_RGB)
 
         # avoid saturation
-        r = r/max_RGB; g = g/max_RGB; z = z/max_RGB
-        #r = r/max_r; g = g/max_g; z = z/max_z
+        r = r / max_RGB
+        g = g / max_RGB
+        z = z / max_RGB
+        # r = r/max_r; g = g/max_g; z = z/max_z
 
         # Rescale to 0-255 for dtype=np.uint8
         max_dtype = np.iinfo(dtype).max
-        r = r*max_dtype
-        g = g*max_dtype
-        z = z*max_dtype
+        r = r * max_dtype
+        g = g * max_dtype
+        z = z * max_dtype
 
         # 0-255 RGB image
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
 
         return image
-    
-    
+
     # Read image
     g = fits.getdata(os.path.join(filenames[0]), memmap=False)
     r = fits.getdata(os.path.join(filenames[1]), memmap=False)
     z = fits.getdata(os.path.join(filenames[2]), memmap=False)
-    
+
     # Contrast scaling / normalization
-    I = (z + r + g)/3.0
-    
+    I = (z + r + g) / 3.0
+
     length, width = g.shape
     image = np.empty([length, width, 3], dtype=dtype)
-    
-    #asinh(Q (I - minimum)/stretch)/Q
-    
+
+    # asinh(Q (I - minimum)/stretch)/Q
+
     # Options for contrast scaling
-    if normalize.lower() == 'lupton' or normalize.lower() == 'luptonhc':
-        z = z*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        r = r*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        g = g*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        
-        #z = z*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        #r = r*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        #g = g*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+    if normalize.lower() == "lupton" or normalize.lower() == "luptonhc":
+        z = z * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+        r = r * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+        g = g * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+
+        # z = z*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        # r = r*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        # g = g*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-    
-    elif normalize.lower() == 'astrolupton':
+
+    elif normalize.lower() == "astrolupton":
         image = make_lupton_rgb(z, r, g, minimum=m, stretch=stretch, Q=Q)
         return image
-    
-    elif normalize.lower() == 'zscore':
+
+    elif normalize.lower() == "zscore":
         Imean = np.nanmean(I)
         Isigma = np.nanstd(I)
 
-        z = A*(z - Imean - m)/Isigma
-        r = A*(r - Imean - m)/Isigma
-        g = A*(g - Imean - m)/Isigma
-        
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        z = A * (z - Imean - m) / Isigma
+        r = A * (r - Imean - m) / Isigma
+        g = A * (g - Imean - m) / Isigma
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-        
-        
-    elif normalize.lower() == 'zscore_orig':
-        
+
+    elif normalize.lower() == "zscore_orig":
         zsigma = np.nanstd(z)
         rsigma = np.nanstd(r)
         gsigma = np.nanstd(g)
-        
-        z = A*(z - np.nanmean(z) - m)/zsigma
-        r = A*(r - np.nanmean(r) - m)/rsigma
-        g = A*(g - np.nanmean(g) - m)/gsigma
 
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
-        
+        z = A * (z - np.nanmean(z) - m) / zsigma
+        r = A * (r - np.nanmean(r) - m) / rsigma
+        g = A * (g - np.nanmean(g) - m) / gsigma
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
+
         return image
-        
-    elif normalize.lower() == 'sinh':
-        z = np.sinh((z-m))
-        r = np.sinh((r-m))
-        g = np.sinh((g-m))
 
-        
-    #sqrt(Q (I - minimum)/stretch)/Q
-    elif normalize.lower() == 'sqrt':
-        z = z*np.sqrt((I-m)*Q/stretch)/I/stretch
-        r = r*np.sqrt((I-m)*Q/stretch)/I/stretch
-        g = g*np.sqrt((I-m)*Q/stretch)/I/stretch
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+    elif normalize.lower() == "sinh":
+        z = np.sinh((z - m))
+        r = np.sinh((r - m))
+        g = np.sinh((g - m))
+
+    # sqrt(Q (I - minimum)/stretch)/Q
+    elif normalize.lower() == "sqrt":
+        z = z * np.sqrt((I - m) * Q / stretch) / I / stretch
+        r = r * np.sqrt((I - m) * Q / stretch) / I / stretch
+        g = g * np.sqrt((I - m) * Q / stretch) / I / stretch
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-        
-        
-    elif normalize.lower() == 'sqrt-old':
+
+    elif normalize.lower() == "sqrt-old":
         z = np.sqrt(z)
         r = np.sqrt(r)
         g = np.sqrt(g)
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-    
-    
-    elif normalize.lower() == 'linear':
-        z = A*(z - m)
-        r = A*(r - m)
-        g = A*(g - m)
-        #z = (z - m)
-        #r = (r - m)
-        #g = (g - m)       
-        
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
-        return image
-        
-    elif normalize.lower() == 'normlinear':
-        #image = np.empty([length, width, 3], dtype=dtype)
 
-        z = A*(z - m)
-        r = A*(r - m)
-        g = A*(g - m)
-        #z = (z - m)
-        #r = (r - m)
-        #g = (g - m)       
-        
-        #image[:,:,0] = z # R
-        #image[:,:,1] = r # G
-        #image[:,:,2] = g # B
-        #return image
-    
-    
-    elif normalize.lower() == 'astroluptonhc':
+    elif normalize.lower() == "linear":
+        z = A * (z - m)
+        r = A * (r - m)
+        g = A * (g - m)
+        # z = (z - m)
+        # r = (r - m)
+        # g = (g - m)
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
+        return image
+
+    elif normalize.lower() == "normlinear":
+        # image = np.empty([length, width, 3], dtype=dtype)
+
+        z = A * (z - m)
+        r = A * (r - m)
+        g = A * (g - m)
+        # z = (z - m)
+        # r = (r - m)
+        # g = (g - m)
+
+        # image[:,:,0] = z # R
+        # image[:,:,1] = r # G
+        # image[:,:,2] = g # B
+        # return image
+
+    elif normalize.lower() == "astroluptonhc":
         image = make_lupton_rgb(z, r, g, minimum=m, stretch=stretch, Q=Q)
-        factor = 2 #gives original image
+        factor = 2  # gives original image
         cenhancer = ImageEnhance.Contrast(Image.fromarray(image))
         im_output = cenhancer.enhance(factor)
         benhancer = ImageEnhance.Brightness(im_output)
@@ -1267,12 +1281,21 @@ def read_image_hsc(filenames, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_p
         return image
 
     else:
-        print('Normalize keyword not recognized.')
+        print("Normalize keyword not recognized.")
 
-def read_image_decam(filename, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_percentile=99.995, dtype=np.uint8, A=1e4, do_norm=False):
-    
-    
-    '''
+
+def read_image_decam(
+    filename,
+    normalize="lupton",
+    stretch=0.5,
+    Q=10,
+    m=0,
+    ceil_percentile=99.995,
+    dtype=np.uint8,
+    A=1e4,
+    do_norm=False,
+):
+    """
     Read in a formatted simulated DECam image
 
     Parameters
@@ -1289,177 +1312,172 @@ def read_image_decam(filename, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_
         data type of the output array
     A: float
         scaling factor for zscoring
-    do_norm: boolean   
+    do_norm: boolean
         For normalizing top fit dtype range
 
     Returns
     -------
     Scaled image
 
-    '''
-    
-    def norm(z,r,g):
+    """
+
+    def norm(z, r, g):
         max_RGB = np.nanpercentile([z, r, g], ceil_percentile)
         print(max_RGB)
 
-        max_z=np.nanpercentile([z], ceil_percentile)
-        max_r=np.nanpercentile([r], ceil_percentile)
-        max_g=np.nanpercentile([g], ceil_percentile)
+        max_z = np.nanpercentile([z], ceil_percentile)
+        max_r = np.nanpercentile([r], ceil_percentile)
+        max_g = np.nanpercentile([g], ceil_percentile)
 
-        #z = np.clip(z,None,max_RGB)
-        #r = np.clip(r,None,max_RGB)
-        #g = np.clip(g,None,max_RGB)
+        # z = np.clip(z,None,max_RGB)
+        # r = np.clip(r,None,max_RGB)
+        # g = np.clip(g,None,max_RGB)
 
         # avoid saturation
-        r = r/max_RGB; g = g/max_RGB; z = z/max_RGB
-        #r = r/max_r; g = g/max_g; z = z/max_z
+        r = r / max_RGB
+        g = g / max_RGB
+        z = z / max_RGB
+        # r = r/max_r; g = g/max_g; z = z/max_z
 
         # Rescale to 0-255 for dtype=np.uint8
         max_dtype = np.iinfo(dtype).max
-        r = r*max_dtype
-        g = g*max_dtype
-        z = z*max_dtype
+        r = r * max_dtype
+        g = g * max_dtype
+        z = z * max_dtype
 
         # 0-255 RGB image
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
 
         return image
-    
-    
+
     # Read image
-    g = fits.getdata(os.path.join(filename+'_g.fits'), memmap=False)
-    r = fits.getdata(os.path.join(filename+'_r.fits'), memmap=False)
-    z = fits.getdata(os.path.join(filename+'_z.fits'), memmap=False)
-    
+    g = fits.getdata(os.path.join(filename + "_g.fits"), memmap=False)
+    r = fits.getdata(os.path.join(filename + "_r.fits"), memmap=False)
+    z = fits.getdata(os.path.join(filename + "_z.fits"), memmap=False)
+
     # Contrast scaling / normalization
-    I = (z + r + g)/3.0
-    
+    I = (z + r + g) / 3.0
+
     length, width = g.shape
     image = np.empty([length, width, 3], dtype=dtype)
-    
-    #asinh(Q (I - minimum)/stretch)/Q
-    
+
+    # asinh(Q (I - minimum)/stretch)/Q
+
     # Options for contrast scaling
-    if normalize.lower() == 'lupton' or normalize.lower() == 'luptonhc':
-        z = z*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        r = r*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        g = g*np.arcsinh(stretch*Q*(I - m))/(Q*I)
-        
-        #z = z*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        #r = r*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        #g = g*np.arcsinh(Q*(I - m)/stretch)/(Q)
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+    if normalize.lower() == "lupton" or normalize.lower() == "luptonhc":
+        z = z * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+        r = r * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+        g = g * np.arcsinh(stretch * Q * (I - m)) / (Q * I)
+
+        # z = z*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        # r = r*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        # g = g*np.arcsinh(Q*(I - m)/stretch)/(Q)
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-    
-    elif normalize.lower() == 'astrolupton':
+
+    elif normalize.lower() == "astrolupton":
         image = make_lupton_rgb(z, r, g, minimum=m, stretch=stretch, Q=Q)
         return image
-    
-    elif normalize.lower() == 'zscore':
+
+    elif normalize.lower() == "zscore":
         Imean = np.nanmean(I)
         Isigma = np.nanstd(I)
 
-        z = A*(z - Imean - m)/Isigma
-        r = A*(r - Imean - m)/Isigma
-        g = A*(g - Imean - m)/Isigma
-        
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        z = A * (z - Imean - m) / Isigma
+        r = A * (r - Imean - m) / Isigma
+        g = A * (g - Imean - m) / Isigma
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-        
-        
-    elif normalize.lower() == 'zscore_orig':
-        
+
+    elif normalize.lower() == "zscore_orig":
         zsigma = np.nanstd(z)
         rsigma = np.nanstd(r)
         gsigma = np.nanstd(g)
-        
-        z = A*(z - np.nanmean(z) - m)/zsigma
-        r = A*(r - np.nanmean(r) - m)/rsigma
-        g = A*(g - np.nanmean(g) - m)/gsigma
 
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
-        
+        z = A * (z - np.nanmean(z) - m) / zsigma
+        r = A * (r - np.nanmean(r) - m) / rsigma
+        g = A * (g - np.nanmean(g) - m) / gsigma
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
+
         return image
-        
-    elif normalize.lower() == 'sinh':
-        z = np.sinh((z-m))
-        r = np.sinh((r-m))
-        g = np.sinh((g-m))
 
-        
-    #sqrt(Q (I - minimum)/stretch)/Q
-    elif normalize.lower() == 'sqrt':
-        z = z*np.sqrt((I-m)*Q/stretch)/I/stretch
-        r = r*np.sqrt((I-m)*Q/stretch)/I/stretch
-        g = g*np.sqrt((I-m)*Q/stretch)/I/stretch
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+    elif normalize.lower() == "sinh":
+        z = np.sinh((z - m))
+        r = np.sinh((r - m))
+        g = np.sinh((g - m))
+
+    # sqrt(Q (I - minimum)/stretch)/Q
+    elif normalize.lower() == "sqrt":
+        z = z * np.sqrt((I - m) * Q / stretch) / I / stretch
+        r = r * np.sqrt((I - m) * Q / stretch) / I / stretch
+        g = g * np.sqrt((I - m) * Q / stretch) / I / stretch
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-        
-        
-    elif normalize.lower() == 'sqrt-old':
+
+    elif normalize.lower() == "sqrt-old":
         z = np.sqrt(z)
         r = np.sqrt(r)
         g = np.sqrt(g)
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
         if do_norm:
-            return norm(z,r,g)
+            return norm(z, r, g)
         else:
             return image
-    
-    
-    elif normalize.lower() == 'linear':
-        z = A*(z - m)
-        r = A*(r - m)
-        g = A*(g - m)
-        #z = (z - m)
-        #r = (r - m)
-        #g = (g - m)       
-        
-        image[:,:,0] = z # R
-        image[:,:,1] = r # G
-        image[:,:,2] = g # B
-        return image
-        
-    elif normalize.lower() == 'normlinear':
-        #image = np.empty([length, width, 3], dtype=dtype)
 
-        z = A*(z - m)
-        r = A*(r - m)
-        g = A*(g - m)
-        #z = (z - m)
-        #r = (r - m)
-        #g = (g - m)       
-        
-        #image[:,:,0] = z # R
-        #image[:,:,1] = r # G
-        #image[:,:,2] = g # B
-        #return image
-    
-    
-    elif normalize.lower() == 'astroluptonhc':
+    elif normalize.lower() == "linear":
+        z = A * (z - m)
+        r = A * (r - m)
+        g = A * (g - m)
+        # z = (z - m)
+        # r = (r - m)
+        # g = (g - m)
+
+        image[:, :, 0] = z  # R
+        image[:, :, 1] = r  # G
+        image[:, :, 2] = g  # B
+        return image
+
+    elif normalize.lower() == "normlinear":
+        # image = np.empty([length, width, 3], dtype=dtype)
+
+        z = A * (z - m)
+        r = A * (r - m)
+        g = A * (g - m)
+        # z = (z - m)
+        # r = (r - m)
+        # g = (g - m)
+
+        # image[:,:,0] = z # R
+        # image[:,:,1] = r # G
+        # image[:,:,2] = g # B
+        # return image
+
+    elif normalize.lower() == "astroluptonhc":
         image = make_lupton_rgb(z, r, g, minimum=m, stretch=stretch, Q=Q)
-        factor = 2 #gives original image
+        factor = 2  # gives original image
         cenhancer = ImageEnhance.Contrast(Image.fromarray(image))
         im_output = cenhancer.enhance(factor)
         benhancer = ImageEnhance.Brightness(im_output)
@@ -1468,11 +1486,12 @@ def read_image_decam(filename, normalize='lupton', stretch=0.5, Q=10, m=0, ceil_
         return image
 
     else:
-        print('Normalize keyword not recognized.')
+        print("Normalize keyword not recognized.")
+
 
 # ### Augment Data
 def gaussblur(image):
-    '''
+    """
     Parameters
     ----------
     image: ndarray
@@ -1481,12 +1500,13 @@ def gaussblur(image):
     -------
     augmented image
 
-    '''
-    aug = iaa.GaussianBlur(sigma=(0.0, np.random.random_sample()*4+2))
+    """
+    aug = iaa.GaussianBlur(sigma=(0.0, np.random.random_sample() * 4 + 2))
     return aug.augment_image(image)
 
+
 def addelementwise16(image):
-    '''
+    """
     Parameters
     ----------
     image: ndarray
@@ -1495,12 +1515,13 @@ def addelementwise16(image):
     -------
     augmented image
 
-    '''
+    """
     aug = iaa.AddElementwise((-3276, 3276))
     return aug.augment_image(image)
 
+
 def addelementwise8(image):
-    '''
+    """
     Parameters
     ----------
     image: ndarray
@@ -1509,13 +1530,13 @@ def addelementwise8(image):
     -------
     augmented image
 
-    '''
+    """
     aug = iaa.AddElementwise((-25, 25))
     return aug.augment_image(image)
 
 
 def addelementwise(image):
-    '''
+    """
     Parameters
     ----------
     image: ndarray
@@ -1524,14 +1545,14 @@ def addelementwise(image):
     -------
     augmented image
 
-    '''
-    aug = iaa.AddElementwise((-image.max()*.1, image.max()*.1))
+    """
+    aug = iaa.AddElementwise((-image.max() * 0.1, image.max() * 0.1))
     return aug.augment_image(image)
 
 
 class train_mapper_cls:
-    '''
-    This class is used to load in and augment data during training. 
+    """
+    This class is used to load in and augment data during training.
     It is initialized and then called during training where it augments images and returns them along with annotations
 
     Parameters
@@ -1540,22 +1561,36 @@ class train_mapper_cls:
 
     These are the necessary arguments for the read_image_hsc function
 
-    '''
+    """
 
-    def __init__(self,**read_image_args):
+    def __init__(self, **read_image_args):
         self.ria = read_image_args
 
-    def __call__(self,dataset_dict):
+    def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        if self.ria['sim']:
-            image = read_image_decam(dataset_dict["file_name"], normalize = self.ria['normalize'],
-            ceil_percentile = self.ria['ceil_percentile'], dtype=self.ria['dtype'],
-            A=self.ria['A'],stretch=self.ria['stretch'],Q=self.ria['Q'],do_norm=self.ria['do_norm'])
+        if self.ria["sim"]:
+            image = read_image_decam(
+                dataset_dict["file_name"],
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
         else:
-            image = read_image_hsc(filenames, normalize = self.ria['normalize'],
-            ceil_percentile = self.ria['ceil_percentile'], dtype=self.ria['dtype'],
-            A=self.ria['A'],stretch=self.ria['stretch'],Q=self.ria['Q'],do_norm=self.ria['do_norm'])
-        '''
+            image = read_image_hsc(
+                filenames,
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+        """
         augs = T.AugmentationList([
             T.RandomRotation([-90, 90, 180], sample_style='choice'),
             T.RandomFlip(prob=0.5),
@@ -1563,20 +1598,21 @@ class train_mapper_cls:
             T.Resize((512,512))
             
         ])
-        '''
-        
-        augs = detectron_addons.KRandomAugmentationList([
-            # my custom augs
-            T.RandomRotation([-90, 90, 180], sample_style='choice'),
-            T.RandomFlip(prob=0.5),
-            T.RandomFlip(prob=0.5,horizontal=False,vertical=True),
-            detectron_addons.CustomAug(gaussblur,prob=1.0),
-            detectron_addons.CustomAug(addelementwise,prob=1.0)
-            #CustomAug(white),
+        """
+
+        augs = detectron_addons.KRandomAugmentationList(
+            [
+                # my custom augs
+                T.RandomRotation([-90, 90, 180], sample_style="choice"),
+                T.RandomFlip(prob=0.5),
+                T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+                detectron_addons.CustomAug(gaussblur, prob=1.0),
+                detectron_addons.CustomAug(addelementwise, prob=1.0)
+                # CustomAug(white),
             ],
-            k=-1
+            k=-1,
         )
-        
+
         # Data Augmentation
         auginput = T.AugInput(image)
         # Transformations to model shapes
@@ -1587,7 +1623,7 @@ class train_mapper_cls:
             for annotation in dataset_dict.pop("annotations")
         ]
         return {
-        # create the format that the model expects
+            # create the format that the model expects
             "image": image,
             "image_shaped": auginput.image,
             "height": 512,
@@ -1596,10 +1632,11 @@ class train_mapper_cls:
             "instances": utils.annotations_to_instances(annos, image.shape[1:]),
         }
 
+
 class test_mapper_cls:
 
-    '''
-    This class is used to load in and augment data during validation. 
+    """
+    This class is used to load in and augment data during validation.
     It is initialized and then called during validation where it augments images and returns them along with annotations
 
     Parameters
@@ -1608,25 +1645,38 @@ class test_mapper_cls:
 
     These are the necessary arguments for the read_image_hsc function
 
-    '''
+    """
 
-
-    def __init__(self,**read_image_args):
+    def __init__(self, **read_image_args):
         self.ria = read_image_args
 
-    def __call__(self,dataset_dict):
+    def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        if self.ria['sim']:
-            image = read_image_decam(dataset_dict["file_name"], normalize = self.ria['normalize'],
-            ceil_percentile = self.ria['ceil_percentile'], dtype=self.ria['dtype'],
-            A=self.ria['A'],stretch=self.ria['stretch'],Q=self.ria['Q'],do_norm=self.ria['do_norm'])
+        if self.ria["sim"]:
+            image = read_image_decam(
+                dataset_dict["file_name"],
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
         else:
-            image = read_image_hsc(filenames, normalize = self.ria['normalize'],
-            ceil_percentile = self.ria['ceil_percentile'], dtype=self.ria['dtype'],
-            A=self.ria['A'],stretch=self.ria['stretch'],Q=self.ria['Q'],do_norm=self.ria['do_norm'])
-        
+            image = read_image_hsc(
+                filenames,
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+
         augs = T.AugmentationList([])
-        
+
         # Data Augmentation
         auginput = T.AugInput(image)
         # Transformations to model shapes
@@ -1637,7 +1687,7 @@ class test_mapper_cls:
             for annotation in dataset_dict.pop("annotations")
         ]
         return {
-        # create the format that the model expects
+            # create the format that the model expects
             "image": image,
             "image_shaped": auginput.image,
             "height": 512,
@@ -1646,70 +1696,69 @@ class test_mapper_cls:
             "instances": utils.annotations_to_instances(annos, image.shape[1:]),
         }
 
+
 # ### Format Astro R-CNN dataset for detectron instance segmentation models
 def get_astro_dicts(img_dir):
-    
-    '''
+    """
     This function reads in the scarlet model files and formats annotations for detectron2
-    
+
     Parameters
     ----------
     img_dir: str
         Directory where the scarlet outputs are stored
-    
+
     Returns
     -------
     dataset_dicts: list
         A list of dictionaries that contain annotations for train, test, val sets
-    
-    
-    '''
 
 
+    """
 
     # It's weird to call this img_dir
-    set_dirs = sorted(glob.glob('%s/set_*' % img_dir))
-    
+    set_dirs = sorted(glob.glob("%s/set_*" % img_dir))
+
     dataset_dicts = []
-    
+
     # Loop through each set
     for idx, set_dir in enumerate(set_dirs[0:10]):
         record = {}
-        
+
         mask_dir = os.path.join(img_dir, set_dir, "masks.fits")
         filename = os.path.join(img_dir, set_dir, "img")
-        
+
         # Open each FITS image
         with fits.open(mask_dir, memmap=False, lazy_load_hdus=False) as hdul:
             sources = len(hdul)
             height, width = hdul[0].data.shape
-            data = [hdu.data/np.max(hdu.data) for hdu in hdul]
+            data = [hdu.data / np.max(hdu.data) for hdu in hdul]
             category_ids = [hdu.header["CLASS_ID"] for hdu in hdul]
-            
+
         record["file_name"] = filename
         record["image_id"] = idx
         record["height"] = height
         record["width"] = width
         objs = []
-        
+
         # Mask value thresholds per category_id
         thresh = [0.005 if i == 1 else 0.08 for i in category_ids]
-        
+
         # Generate segmentation masks
         for i in range(sources):
             image = data[i]
             mask = np.zeros([height, width], dtype=np.uint8)
             # Create mask from threshold
-            mask[:,:][image > thresh[i]] = 1
+            mask[:, :][image > thresh[i]] = 1
             # Smooth mask
-            mask[:,:] = cv2.GaussianBlur(mask[:,:], (9,9), 2)
-            
+            mask[:, :] = cv2.GaussianBlur(mask[:, :], (9, 9), 2)
+
             # https://github.com/facebookresearch/Detectron/issues/100
-            contours, hierarchy = cv2.findContours((mask).astype(np.uint8), cv2.RETR_TREE,
-                                                        cv2.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv2.findContours(
+                (mask).astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+            )
             segmentation = []
             for contour in contours:
-                x,y,w,h = cv2.boundingRect(contour)
+                x, y, w, h = cv2.boundingRect(contour)
                 contour = contour.flatten().tolist()
                 # segmentation.append(contour)
                 if len(contour) > 4:
@@ -1717,24 +1766,18 @@ def get_astro_dicts(img_dir):
             # No valid countors
             if len(segmentation) == 0:
                 continue
-            
+
             # Add to dict
             obj = {
                 "bbox": [x, y, w, h],
-                "area": w*h,
+                "area": w * h,
                 "bbox_mode": BoxMode.XYWH_ABS,
                 "segmentation": segmentation,
                 "category_id": category_ids[i] - 1,
             }
             objs.append(obj)
-            
+
         record["annotations"] = objs
         dataset_dicts.append(record)
-         
+
     return dataset_dicts
-
-
-    
-
-
-

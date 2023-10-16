@@ -381,7 +381,7 @@ class Visualizer:
         self._instance_mode = instance_mode
         self.keypoint_threshold = _KEYPOINT_THRESHOLD
 
-    def draw_instance_predictions(self, predictions, alpha=0.5, lf=True, ls='-',boxf=False):
+    def draw_instance_predictions(self, predictions, alpha=0.5, lf=True, ls="-", boxf=False):
         """
         Draw instance-level prediction results on an image.
 
@@ -399,7 +399,7 @@ class Visualizer:
         if lf:
             labels = _create_text_labels(classes, scores, self.metadata.get("thing_classes", None))
         else:
-            labels=None
+            labels = None
         keypoints = predictions.pred_keypoints if predictions.has("pred_keypoints") else None
 
         if predictions.has("pred_masks"):
@@ -408,18 +408,16 @@ class Visualizer:
         else:
             masks = None
 
-            
         if self._instance_mode == ColorMode.SEGMENTATION and self.metadata.get("thing_colors"):
             colors = [
                 self._jitter([x / 255 for x in self.metadata.thing_colors[c]]) for c in classes
             ]
-            #alpha = 0.8
-            print('Setting colors')
+            # alpha = 0.8
+            print("Setting colors")
 
         else:
             colors = None
-            #alpha = 0.5
-        
+            # alpha = 0.5
 
         if self._instance_mode == ColorMode.IMAGE_BW:
             self.output.reset_image(
@@ -429,10 +427,10 @@ class Visualizer:
                     else None
                 )
             )
-            #alpha = 0.3
-        
+            # alpha = 0.3
+
         if not boxf:
-            boxes=None
+            boxes = None
 
         self.overlay_instances(
             masks=masks,
@@ -441,7 +439,7 @@ class Visualizer:
             keypoints=keypoints,
             assigned_colors=colors,
             alpha=alpha,
-            ls=ls
+            ls=ls,
         )
         return self.output
 
@@ -547,7 +545,7 @@ class Visualizer:
 
     draw_panoptic_seg_predictions = draw_panoptic_seg  # backward compatibility
 
-    def draw_dataset_dict(self, dic, lf=True,boxf=True,alpha=0.5,ls='-'):
+    def draw_dataset_dict(self, dic, lf=True, boxf=True, alpha=0.5, ls="-"):
         """
         Draw annotations/segmentaions in Detectron2 Dataset format.
 
@@ -578,7 +576,7 @@ class Visualizer:
 
             colors = None
             category_ids = [x["category_id"] for x in annos]
-            #category_ids = [0 for x in annos]
+            # category_ids = [0 for x in annos]
             if self._instance_mode == ColorMode.SEGMENTATION and self.metadata.get("thing_colors"):
                 colors = [
                     self._jitter([x / 255 for x in self.metadata.thing_colors[c]])
@@ -591,14 +589,20 @@ class Visualizer:
                 class_names=names,
                 is_crowd=[x.get("iscrowd", 0) for x in annos],
             )
-            
+
             if not lf:
-                labels=None
+                labels = None
             if not boxf:
-                boxes=None
-            
+                boxes = None
+
             self.overlay_instances(
-                labels=labels, boxes=boxes, masks=masks, keypoints=keypts, assigned_colors=colors, alpha=alpha, ls=ls
+                labels=labels,
+                boxes=boxes,
+                masks=masks,
+                keypoints=keypts,
+                assigned_colors=colors,
+                alpha=alpha,
+                ls=ls,
             )
 
         sem_seg = dic.get("sem_seg", None)
@@ -632,7 +636,7 @@ class Visualizer:
         keypoints=None,
         assigned_colors=None,
         alpha=0.5,
-        ls='-'
+        ls="-",
     ):
         """
         Args:
@@ -820,7 +824,6 @@ class Visualizer:
         visible = {}
         keypoint_names = self.metadata.get("keypoint_names")
         for idx, keypoint in enumerate(keypoints):
-
             # draw keypoint
             x, y, prob = keypoint
             if prob > self.keypoint_threshold:
