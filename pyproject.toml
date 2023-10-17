@@ -17,6 +17,8 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "git+https://github.com/facebookresearch/detectron2.git",
+    "imgaug",
 ]
 
 [metadata]
