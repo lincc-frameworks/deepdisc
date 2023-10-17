@@ -1,6 +1,6 @@
 import sys, os
 import numpy as np
-from detectron2.engine import DefaultTrainer,  DefaultPredictor,  SimpleTrainer
+from detectron2.engine import DefaultTrainer, DefaultPredictor, SimpleTrainer
 from detectron2.engine.defaults import create_ddp_model
 from typing import Dict, List, Optional, Mapping
 import detectron2.solver as solver
@@ -372,8 +372,6 @@ class LazyAstroTrainer(SimpleTrainer):
     def set_period(self,p):
         self.period = p
 
-    
-        
     # Copied directly from SimpleTrainer, add in custom manipulation with the loss
     # see https://detectron2.readthedocs.io/en/latest/_modules/detectron2/engine/train_loop.html#SimpleTrainer
     def run_step(self):
@@ -384,7 +382,7 @@ class LazyAstroTrainer(SimpleTrainer):
         data = next(self._data_loader_iter)
         # Note: in training mode, model() returns loss
         loss_dict = self.model(data)
-        #print('Loss dict',loss_dict)
+        # print('Loss dict',loss_dict.values())
         if isinstance(loss_dict, torch.Tensor):
             losses = loss_dict
             loss_dict = {"total_loss": loss_dict}
@@ -393,22 +391,31 @@ class LazyAstroTrainer(SimpleTrainer):
             all_losses = [l.cpu().detach().item() for l in loss_dict.values()]
         self.optimizer.zero_grad()
         losses.backward()
-        
-        
-        #self._write_metrics(loss_dict,data_time)
+
+        # self._write_metrics(loss_dict,data_time)
 
         self.optimizer.step()
-        
-        
+
         self.lossList.append(losses.cpu().detach().numpy())
         if self.iterCount % self.period == 0 and comm.is_main_process():
-            #print("Iteration: ", self.iterCount, " time: ", data_time," loss: ",losses.cpu().detach().numpy(), "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
-            print("Iteration: ", self.iterCount, " time: ", data_time, loss_dict.keys(), all_losses, "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
+            # print("Iteration: ", self.iterCount, " time: ", data_time," loss: ",losses.cpu().detach().numpy(), "val loss: ",self.valloss, "lr: ", self.scheduler.get_lr())
+            print(
+                "Iteration: ",
+                self.iterCount,
+                " time: ",
+                data_time,
+                loss_dict.keys(),
+                all_losses,
+                "val loss: ",
+                self.valloss,
+                "lr: ",
+                self.scheduler.get_lr(),
+            )
 
         del data
         gc.collect()
         torch.cuda.empty_cache()
-        
+
     @classmethod
     def build_lr_scheduler(cls, cfg, optimizer):
         """
@@ -416,13 +423,13 @@ class LazyAstroTrainer(SimpleTrainer):
         Overwrite it if you'd like a different scheduler.
         """
         return build_lr_scheduler(cfg, optimizer)
-    
-    def add_val_loss(self,val_loss):
+
+    def add_val_loss(self, val_loss):
         """
         It now calls :func:`detectron2.solver.build_lr_scheduler`.
         Overwrite it if you'd like a different scheduler.
         """
-        
+
         self.vallossList.append(val_loss)
 
 
