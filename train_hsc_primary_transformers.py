@@ -376,20 +376,20 @@ def main(tl, dataset_names, train_head, args):
     scheme = args.scheme
     alphas = args.alphas
     modname = args.modname
-    if modname =='swin':
-        cfgfile = '/home/g4merz/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_swin_b_in21k_50ep.py'
-        initwfile= '/home/g4merz/detectron2/projects/ViTDet/model_final_246a82.pkl'
-    elif modname =='mvitv2':
-        cfgfile = '/home/g4merz/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_mvitv2_b_in21k_100ep.py'
-        initwfile = '/home/g4merz/detectron2/projects/ViTDet/model_final_8c3da3.pkl'
+    if modname == "swin":
+        cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_swin_b_in21k_50ep.py"
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_246a82.pkl"
+    elif modname == "mvitv2":
+        cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_mvitv2_b_in21k_100ep.py"
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_8c3da3.pkl"
 
-    elif modname=='vitdet':
-        cfgfile = '/home/g4merz/detectron2/projects/ViTDet/configs/COCO/mask_rcnn_vitdet_b_100ep.py'
-        #initwfile = '/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_435fa9.pkl'
-        initwfile = '/home/g4merz/detectron2/projects/ViTDet/model_final_61ccd1.pkl'
-        
-    datatype=args.dtype
-    if datatype==8:
+    elif modname == "vitdet":
+        cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/mask_rcnn_vitdet_b_100ep.py"
+        # initwfile = '/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_435fa9.pkl'
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_61ccd1.pkl"
+
+    datatype = args.dtype
+    if datatype == 8:
         dtype = np.uint8
     elif datatype == 16:
         dtype = np.int16
@@ -429,7 +429,7 @@ def main(tl, dataset_names, train_head, args):
 
     metadata = MetadataCatalog.get(cfg.dataloader.test.dataset.names)  # to get labels from ids
     classes = metadata.thing_classes
-    bs=2
+    bs = 2
 
     cfg.model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
     cfg.dataloader.train.total_batch_size = bs
@@ -447,8 +447,8 @@ def main(tl, dataset_names, train_head, args):
 
     cfg_loader = get_cfg()
     cfg_loader.SOLVER.IMS_PER_BATCH = bs
-    cfg_loader.DATASETS.TRAIN = ("astro_train") # Register Metadata
-    cfg_loader.DATASETS.TEST = ("astro_val")
+    cfg_loader.DATASETS.TRAIN = "astro_train"  # Register Metadata
+    cfg_loader.DATASETS.TEST = "astro_val"
     #cfg_loader.DATALOADER.NUM_WORKERS = 0
     cfg_loader.DATALOADER.PREFETCH_FACTOR=2
     cfg_loader.SOLVER.BASE_LR = 0.001
