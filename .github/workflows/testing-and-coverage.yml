@@ -28,7 +28,7 @@ jobs:
         channel-priority: strict
         show-channel-urls: true
         use-mamba: true
-        environment-file: deepdisc-env-nobuilds.yml
+        environment-file: ci-env.yml
         activate-environment: deepdisc
     - name: Install dependencies
       run: |

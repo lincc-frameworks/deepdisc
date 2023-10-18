@@ -19,6 +19,7 @@ dynamic = ["version"]
 dependencies = [
     "imgaug",
     "torch",
+    "scarlet",
 ]
 
 [metadata]
