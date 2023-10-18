@@ -5,7 +5,7 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1
   - _openmp_mutex=5.1
-  - _pytorch_select=2.0
+  # - _pytorch_select=2.0
   - absl-py=0.12.0
   - aiohttp=3.8.5
   - aiosignal=1.2.0
@@ -133,8 +133,8 @@ dependencies:
   - python=3.9.15
   - python-dateutil=2.8.2
   - python_abi=3.9
-  - pytorch=1.10.1
-  - pytorch-base=1.10.1
+  # - pytorch=1.10.1
+  # - pytorch-base=1.10.1
   - pywavelets=1.3.0
   - pyyaml=5.4.1
   - readline=8.2
@@ -155,9 +155,9 @@ dependencies:
   - tifffile=2020.6.3
   - tk=8.6.12
   - toolz=0.12.0
-  - torchtext-base=0.11.1
-  - torchvision=0.11.2
-  - torchvision-base=0.11.2
+  # - torchtext-base=0.11.1
+  # - torchvision=0.11.2
+  # - torchvision-base=0.11.2
   - tornado=6.3.2
   - tqdm=4.65.0
   - tzdata=2023c
