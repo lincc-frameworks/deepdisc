@@ -30,7 +30,7 @@ jobs:
         miniforge-version: latest
         miniforge-variant: Mambaforge
         use-mamba: true
-        environment-file: environment.yml
+        environment-file: deepdisc-env-nobuilds.yml
         activate-environment: deepdisc
     - name: Install dependencies
       run: |
