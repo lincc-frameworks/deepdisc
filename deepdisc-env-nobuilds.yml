@@ -30,8 +30,8 @@ dependencies:
   - cloudpickle=2.2.1
   - contourpy=1.0.5
   - cryptography=39.0.1
-  - cudatoolkit=11.2.2
-  - cudnn=8.1.1_11.2
+  # - cudatoolkit=11.2.2
+  # - cudnn=8.1.1_11.2
   - cycler=0.11.0
   - cytoolz=0.11.2
   - dask-core=2023.9.3
