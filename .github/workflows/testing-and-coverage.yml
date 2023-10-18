@@ -27,8 +27,6 @@ jobs:
         channels: conda-forge,defaults
         channel-priority: strict
         show-channel-urls: true
-        miniforge-version: latest
-        miniforge-variant: Mambaforge
         use-mamba: true
         environment-file: deepdisc-env-nobuilds.yml
         activate-environment: deepdisc
@@ -39,7 +37,6 @@ jobs:
         pip install 'git+https://github.com/facebookresearch/detectron2.git'
         pip install .
         pip install .[dev]
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run unit tests with pytest
       run: |
         python -m pytest tests --cov=deepdisc --cov-report=xml
