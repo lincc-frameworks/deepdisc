@@ -17,7 +17,6 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "detectron2",
     "imgaug",
 ]
 
