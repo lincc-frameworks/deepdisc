@@ -1,11 +1,6 @@
 name: deepdisc
 channels:
-  - https://ftp.osuosl.org/pub/open-ce/1.8.0
   - conda-forge
-  - https://ftp.osuosl.org/pub/open-ce/1.5.1
-  - https://ftp.osuosl.org/pub/open-ce/current
-  - https://ftp.osuosl.org/pub/open-ce/current/
-  - https://ftp.osuosl.org/pub/open-ce/1.8.0/
   - defaults
 dependencies:
   - _libgcc_mutex=0.1
