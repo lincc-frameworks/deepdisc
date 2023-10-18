@@ -196,4 +196,3 @@ dependencies:
     - tomli==2.0.1
     - typing-extensions==4.8.0
     - yacs==0.1.8
-prefix: /home/g4merz/.conda/envs/ddtestnew
