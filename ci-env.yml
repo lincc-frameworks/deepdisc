@@ -16,4 +16,5 @@ dependencies:
   - torchvision
   - pip:
     - autograd
+    - peigen
     - proxmin
