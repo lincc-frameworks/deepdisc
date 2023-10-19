@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  checkout:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -18,7 +18,10 @@ jobs:
     steps:
     - name: Checkout DeepDISC code
       uses: actions/checkout@v3
-    - uses: ./.github/workflows/environment-setup.yml
+  setup:
+    uses: ./.github/workflows/environment-setup.yml
+  tests:
+    steps:
     - name: Run unit tests with pytest
       run: |
         python -m pytest tests --cov=deepdisc --cov-report=xml
