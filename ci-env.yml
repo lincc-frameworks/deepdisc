@@ -11,8 +11,9 @@ dependencies:
   - imgaug
   - numpy
   - opencv
+  - pybind11
   - pytorch
   - torchvision
-  - pybind11
-  - autograd
-  - proxmin
+  - pip:
+    - autograd
+    - proxmin
