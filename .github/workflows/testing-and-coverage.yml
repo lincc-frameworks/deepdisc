@@ -21,6 +21,7 @@ jobs:
   setup:
     uses: ./.github/workflows/environment-setup.yml
   tests:
+    runs-on: ubuntu-latest
     steps:
     - name: Run unit tests with pytest
       run: |
