@@ -13,3 +13,6 @@ dependencies:
   - opencv
   - pytorch
   - torchvision
+  - pybind11
+  - autograd
+  - proxmin
