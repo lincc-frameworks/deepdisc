@@ -10,19 +10,30 @@ on:
     branches: [ main ]
 
 jobs:
-  checkout:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     steps:
-    - name: Checkout DeepDISC code
-      uses: actions/checkout@v3
-  setup:
-    uses: ./.github/workflows/environment-setup.yml
-  tests:
-    runs-on: ubuntu-latest
-    steps:
+    - uses: actions/checkout@v3
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        python-version: 3.9.15
+        channels: conda-forge,defaults
+        channel-priority: strict
+        show-channel-urls: true
+        use-mamba: true
+        environment-file: ci-env.yml
+        activate-environment: deepdisc
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        python -m pip install --upgrade pip
+        pip install .
+        pip install 'git+https://github.com/facebookresearch/detectron2.git@80307d2d5e06f06a8a677cc2653f23a4c56402ac'
+        pip install 'git+https://github.com/pmelchior/scarlet.git'
+        pip install .[dev]
     - name: Run unit tests with pytest
       run: |
         python -m pytest tests --cov=deepdisc --cov-report=xml
