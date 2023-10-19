@@ -17,6 +17,8 @@ jobs:
       SKIP: "check-lincc-frameworks-template-version,pytest-check,no-commit-to-branch,validate-pyproject,check-added-large-files,sphinx-build"
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 
     - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: 3.9.15
