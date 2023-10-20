@@ -1,21 +1,20 @@
-import sys, os
-import numpy as np
+import os
+import sys
 import time
-import scarlet
-import sep
-import scarlet.wavelet
 
-from astropy.io import ascii
 import astropy.io.fits as fits
-
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-
-from astropy.wcs import WCS
-from scipy.stats import median_abs_deviation as mad
+import numpy as np
+import scarlet
+import scarlet.wavelet
+import sep
+from astropy.io import ascii
 from astropy.stats import median_absolute_deviation as astromad
-from astropy.visualization.lupton_rgb import LinearMapping, AsinhMapping
+from astropy.visualization.lupton_rgb import AsinhMapping, LinearMapping
+from astropy.wcs import WCS
+from matplotlib.patches import Ellipse
+from scipy.stats import median_abs_deviation as mad
 
 
 def write_scarlet_results(
@@ -81,8 +80,12 @@ def write_scarlet_results(
         # (x0, y0, w, h) in absolute floating pixel coordinates
         bbox_h = starlet_source.bbox.shape[1]
         bbox_w = starlet_source.bbox.shape[2]
-        bbox_y = starlet_source.bbox.origin[1] + int(np.floor(bbox_w / 2))  # y-coord of the source's center
-        bbox_x = starlet_source.bbox.origin[2] + int(np.floor(bbox_w / 2))  # x-coord of the source's center
+        bbox_y = starlet_source.bbox.origin[1] + int(
+            np.floor(bbox_w / 2)
+        )  # y-coord of the source's center
+        bbox_x = starlet_source.bbox.origin[2] + int(
+            np.floor(bbox_w / 2)
+        )  # x-coord of the source's center
 
         # Ellipse parameters (a, b, theta) from deblend catalog
         e_a, e_b, e_theta = cat["a"], cat["b"], cat["theta"]
@@ -93,7 +96,9 @@ def write_scarlet_results(
         model_hdr["bbox"] = ",".join(map(str, [bbox_x, bbox_y, bbox_w, bbox_h]))
         model_hdr["area"] = bbox_w * bbox_h
         model_hdr["ell_parm"] = ",".join(map(str, list(ell_parm)))
-        model_hdr["cat_id"] = 1  # Category ID #TODO: set categor_id based on if the source is extended or not
+        model_hdr[
+            "cat_id"
+        ] = 1  # Category ID #TODO: set categor_id based on if the source is extended or not
 
         return model_hdr
 
@@ -103,7 +108,9 @@ def write_scarlet_results(
     filenames = {}
 
     # Filter loop
-    for i, f in enumerate(filters):  # datas is HSC data array with dimensions [filters, N, N]
+    for i, f in enumerate(
+        filters
+    ):  # datas is HSC data array with dimensions [filters, N, N]
         f = f.upper()
 
         # Primary HDU is full image
@@ -151,7 +158,9 @@ def write_scarlet_results(
                 segmask_hdr = _make_hdr(starlet_sources[k], cat)
 
                 # Save each model source k in the image
-                segmask_hdu = fits.ImageHDU(data=segmentation_masks[k], header=segmask_hdr)
+                segmask_hdu = fits.ImageHDU(
+                    data=segmentation_masks[k], header=segmask_hdr
+                )
                 segmask_primary = fits.PrimaryHDU()
 
                 segmask_hdul.append(segmask_hdu)
@@ -159,7 +168,9 @@ def write_scarlet_results(
             save_segmask_hdul = fits.HDUList([segmask_primary, *segmask_hdul])
 
             # Save list of filenames in dict for each band
-            filenames["segmask"] = os.path.join(dirpath, f"{f}-{s}_scarlet_segmask.fits")
+            filenames["segmask"] = os.path.join(
+                dirpath, f"{f}-{s}_scarlet_segmask.fits"
+            )
             save_segmask_hdul.writeto(filenames["segmask"], overwrite=True)
 
     return filenames
@@ -200,7 +211,14 @@ def plot_stretch_Q(datas, stretches=[0.01, 0.1, 0.5, 1], Qs=[1, 10, 5, 100]):
     return fig
 
 
-def make_catalog(datas, lvl=4, wave=True, segmentation_map=False, maskthresh=10.0, object_limit=100000):
+def make_catalog(
+    datas,
+    lvl=4,
+    wave=True,
+    segmentation_map=False,
+    maskthresh=10.0,
+    object_limit=100000,
+):
     """
     Creates a detection catalog by combining low and high resolution data
 
@@ -273,7 +291,11 @@ def make_catalog(datas, lvl=4, wave=True, segmentation_map=False, maskthresh=10.
     # Extract detection catalog with segmentation maps!
     # Can use this to retrieve ellipse params
     catalog = sep.extract(
-        detect, lvl, err=bkg.globalrms, segmentation_map=segmentation_map, maskthresh=maskthresh
+        detect,
+        lvl,
+        err=bkg.globalrms,
+        segmentation_map=segmentation_map,
+        maskthresh=maskthresh,
     )
 
     # Estimate background
@@ -311,7 +333,9 @@ def mad_wavelet_own(image):
     # Scale =1/1.4826 to replicate older scipy MAD behavior
     scale = 1 / 1.4826
     sigma = astromad(
-        scarlet.Starlet.from_image(image, scales=2).coefficients[0, ...], axis=(-2, -1), ignore_nan=True
+        scarlet.Starlet.from_image(image, scales=2).coefficients[0, ...],
+        axis=(-2, -1),
+        ignore_nan=True,
     )
     return sigma / scale
 
@@ -598,9 +622,9 @@ def run_scarlet(
 
     # observation_psf = scarlet.GaussianPSF(sigma=sigma_obs)
     observation_psf = scarlet.ImagePSF(psf)
-    observation = scarlet.Observation(datas, psf=observation_psf, weights=weights, channels=filters).match(
-        model_frame
-    )
+    observation = scarlet.Observation(
+        datas, psf=observation_psf, weights=weights, channels=filters
+    ).match(model_frame)
 
     # Initialize starlet sources to be fit. Assume extended sources for all because
     # we are not looking at all detections in each image
@@ -627,7 +651,12 @@ def run_scarlet(
 
         # Try modeling each source as a single ExtendedSource first
         new_source = scarlet.ExtendedSource(
-            model_frame, (src["y"], src["x"]), observation, K=1, thresh=morph_thresh, compact=compact
+            model_frame,
+            (src["y"], src["x"]),
+            observation,
+            K=1,
+            thresh=morph_thresh,
+            compact=compact,
         )
 
         starlet_sources.append(new_source)
@@ -691,7 +720,11 @@ def run_scarlet(
         # Run sep
         try:
             cat, _ = make_catalog(
-                model, lvl_segmask, wave=False, segmentation_map=False, maskthresh=maskthresh
+                model,
+                lvl_segmask,
+                wave=False,
+                segmentation_map=False,
+                maskthresh=maskthresh,
             )
         except:
             print(f"Exception with source {k}")
@@ -779,7 +812,14 @@ def run_scarlet(
             plt.savefig(figpath + "sources.png")
         plt.show()
 
-    return observation, starlet_sources, model_frame, catalog, catalog_deblended, segmentation_masks
+    return (
+        observation,
+        starlet_sources,
+        model_frame,
+        catalog,
+        catalog_deblended,
+        segmentation_masks,
+    )
 
 
 def overlapped_slices(bbox1, bbox2):
@@ -858,8 +898,12 @@ def get_processed_hsc_DR3_data(
     # print(dirpath,'dirpath')
 
     for f in filters:
-        impath = os.path.join(dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_img.fits")
-        modpath = os.path.join(dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_model.fits")
+        impath = os.path.join(
+            dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_img.fits"
+        )
+        modpath = os.path.join(
+            dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_model.fits"
+        )
         # print(impath, 'impath')
 
         # print(f'Loading "{filepath}".')
@@ -883,7 +927,10 @@ def get_processed_hsc_DR3_data(
 
 
 def return_model_objects(
-    fiG, luptonize=False, stringcap=14, dirpath="/home/shared/hsc/HSC/HSC_DR3/data/train/"
+    fiG,
+    luptonize=False,
+    stringcap=14,
+    dirpath="/home/shared/hsc/HSC/HSC_DR3/data/train/",
 ):
     s = fiG.split(f"G-")[1].split(".fits")[0]
     tract, patch, sp = s.split("-")
@@ -935,7 +982,10 @@ def return_model_objects(
                 bs2 = int(bb[3])
 
                 shape = [bs2, bs1]
-                origin = [bmin2 - int(np.floor(bs1 / 2)), bmin1 - int(np.floor(bs2 / 2))]
+                origin = [
+                    bmin2 - int(np.floor(bs1 / 2)),
+                    bmin1 - int(np.floor(bs2 / 2)),
+                ]
                 # print(shape,origin)
 
                 mb = scarlet.bbox.Box(shape, origin)
@@ -958,9 +1008,13 @@ def return_spliced_sources(sourceG, sourceR, sourceI):
     sources = []
     for source in [sourceG, sourceR, sourceI]:
         if source.shape[0] > wmin:
-            source = source[(source.shape[0] - wmin) // 2 : -(source.shape[0] - wmin) // 2, :]
+            source = source[
+                (source.shape[0] - wmin) // 2 : -(source.shape[0] - wmin) // 2, :
+            ]
         if source.shape[1] > hmin:
-            source = source[:, (source.shape[1] - hmin) // 2 : -(source.shape[1] - hmin) // 2]
+            source = source[
+                :, (source.shape[1] - hmin) // 2 : -(source.shape[1] - hmin) // 2
+            ]
         sources.append(source)
 
     return sources

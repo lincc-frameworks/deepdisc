@@ -1,66 +1,57 @@
-import sys, os
-import numpy as np
-import json
-import cv2
-from astropy.io import fits
-import time
 import datetime
+import json
 import logging
+import os
+import sys
+import time
 
-
+import cv2
 import detectron2
+import numpy as np
+from astropy.io import fits
 from detectron2.utils.logger import setup_logger
 
 setup_logger()
-from detectron2.utils.logger import log_every_n_seconds
-from detectron2.utils import comm
+from typing import Dict, List, Optional, Tuple
 
 import detectron2.data as data
 import detectron2.data.transforms as T
-from detectron2.data.transforms import Transform
-from detectron2.data.transforms import Augmentation
-
-
-from detectron2.data.transforms import Transform
-from detectron2.data.transforms import Augmentation
-from fvcore.transforms.transform import Transform, TransformList
-
-from detectron2.data import build_detection_train_loader
-from detectron2.structures import BoxMode
 
 # Yufeng Dec21 more import
 import matplotlib.pyplot as plt
-from detectron2.utils.visualizer import Visualizer
+import torch
+from detectron2.data import build_detection_train_loader
+from detectron2.data.transforms import Augmentation, Transform
 from detectron2.engine import HookBase
-
+from detectron2.engine.hooks import LRScheduler
+from detectron2.layers import Conv2d, ShapeSpec, cat, get_norm, nonzero_tuple
+from detectron2.modeling import ROI_HEADS_REGISTRY
+from detectron2.modeling.matcher import Matcher
+from detectron2.modeling.poolers import ROIPooler
+from detectron2.modeling.roi_heads import CascadeROIHeads, StandardROIHeads
+from detectron2.structures import Boxes, BoxMode, ImageList, Instances, pairwise_iou
 from detectron2.utils import comm
 from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.env import seed_all_rng
-from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
+from detectron2.utils.events import (
+    CommonMetricPrinter,
+    EventStorage,
+    JSONWriter,
+    TensorboardXWriter,
+    get_event_storage,
+)
 from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import setup_logger
-
-from detectron2.utils.events import EventStorage, get_event_storage
-from detectron2.engine.hooks import LRScheduler
+from detectron2.utils.logger import log_every_n_seconds, setup_logger
+from detectron2.utils.visualizer import Visualizer
 from fvcore.common.param_scheduler import ParamScheduler
-import torch
+from fvcore.transforms.transform import Transform, TransformList
 from torch import nn
-from torch.nn import functional as F
-
-from typing import Dict, List, Optional, Tuple
-from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
-from detectron2.layers import Conv2d, ShapeSpec, get_norm, cat, nonzero_tuple
-from detectron2.modeling import ROI_HEADS_REGISTRY
-from detectron2.modeling.roi_heads import StandardROIHeads
-from detectron2.modeling.poolers import ROIPooler
-from detectron2.modeling.roi_heads import CascadeROIHeads
-from detectron2.modeling.matcher import Matcher
-
-from torch.distributions.independent import Independent
-from torch.distributions.mixture_same_family import MixtureSameFamily
 from torch.distributions.beta import Beta
 from torch.distributions.categorical import Categorical
+from torch.distributions.independent import Independent
+from torch.distributions.mixture_same_family import MixtureSameFamily
 from torch.distributions.normal import Normal
+from torch.nn import functional as F
 
 
 def plot_stretch_Q(
@@ -101,7 +92,13 @@ def plot_stretch_Q(
     fig, ax = plt.subplots(len(stretches), len(Qs), figsize=(9, 9))
     for i, stretch in enumerate(stretches):
         for j, Q in enumerate(Qs):
-            img = read_image(d, normalize="lupton", stretch=stretch, Q=Q, ceil_percentile=ceil_percentile)
+            img = read_image(
+                d,
+                normalize="lupton",
+                stretch=stretch,
+                Q=Q,
+                ceil_percentile=ceil_percentile,
+            )
             # Scale the RGB channels for the image
             visualizer = Visualizer(img, metadata=astro_metadata)
             out = visualizer.draw_dataset_dict(d)
@@ -129,7 +126,9 @@ class SaveHook(HookBase):
 
     def after_train(self):
         print("saving", self.output_name)
-        self.trainer.checkpointer.save(self.output_name)  # Note: Set the name of the output model here
+        self.trainer.checkpointer.save(
+            self.output_name
+        )  # Note: Set the name of the output model here
 
 
 #
@@ -173,8 +172,12 @@ class LossEvalHook(HookBase):
                 iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
                 seconds_per_img = total_compute_time / iters_after_start
                 if idx >= num_warmup * 2 or seconds_per_img > 5:
-                    total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
-                    eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
+                    total_seconds_per_img = (
+                        time.perf_counter() - start_time
+                    ) / iters_after_start
+                    eta = datetime.timedelta(
+                        seconds=int(total_seconds_per_img * (total - idx - 1))
+                    )
                     log_every_n_seconds(
                         logging.INFO,
                         "Loss on Validation  done {}/{}. {:.4f} s / img. ETA={}".format(
@@ -205,7 +208,9 @@ class LossEvalHook(HookBase):
     def after_step(self):
         next_iter = self.trainer.iter + 1
         is_final = next_iter == self.trainer.max_iter
-        if is_final or (self._period > 0 and next_iter % self._period == 0):  # or (next_iter == 1):
+        if is_final or (
+            self._period > 0 and next_iter % self._period == 0
+        ):  # or (next_iter == 1):
             self._do_loss_eval()
         self.trainer.storage.put_scalars(timetest=12)
 
@@ -372,7 +377,9 @@ class KRandomAugmentationList(Augmentation):
         super().__init__()
         self.max_range = len(augs)
         self.k = k
-        self.augs = augs  # set augs to use as fixed if we have to use same augs everytime
+        self.augs = (
+            augs  # set augs to use as fixed if we have to use same augs everytime
+        )
         self.cropaug = cropaug
 
     def _setup_augs(self, augs, k: int):
@@ -401,7 +408,9 @@ class KRandomAugmentationList(Augmentation):
     def __call__(self, aug_input) -> Transform:
         tfms = []
 
-        for x in self._setup_augs(self.augs, self.k):  # generate auguments to use randomly on the fly
+        for x in self._setup_augs(
+            self.augs, self.k
+        ):  # generate auguments to use randomly on the fly
             # print(x)
             tfm = x(aug_input)
             tfms.append(tfm)
@@ -500,7 +509,9 @@ class RedshiftCasROIHeads(CascadeROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            boxes = [
+                x.proposal_boxes if self.training else x.pred_boxes for x in instances
+            ]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
@@ -515,7 +526,9 @@ class RedshiftCasROIHeads(CascadeROIHeads):
             # print('gt_classes')
             # print(gt_classes)
             # print('fg_inds')
-            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
+            fg_inds = nonzero_tuple(
+                (gt_classes >= 0) & (gt_classes < self.num_classes)
+            )[0]
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
 
@@ -596,7 +609,9 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def output_pdf(self, inputs):
         pdf = Independent(
             MixtureSameFamily(
-                mixture_distribution=Categorical(logits=inputs[..., : self.num_components]),
+                mixture_distribution=Categorical(
+                    logits=inputs[..., : self.num_components]
+                ),
                 component_distribution=Normal(
                     inputs[..., self.num_components : 2 * self.num_components],
                     F.softplus(inputs[..., 2 * self.num_components :]),
@@ -609,7 +624,9 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            boxes = [
+                x.proposal_boxes if self.training else x.pred_boxes for x in instances
+            ]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
@@ -622,7 +639,9 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
 
         if self.training:
             gt_classes = cat([x.gt_classes for x in instances])
-            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
+            fg_inds = nonzero_tuple(
+                (gt_classes >= 0) & (gt_classes < self.num_classes)
+            )[0]
             pdfs_fg = self.output_pdf(fcs[fg_inds, ...])
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
@@ -690,7 +709,9 @@ class ConvRedshiftROIHeads(StandardROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            boxes = [
+                x.proposal_boxes if self.training else x.pred_boxes for x in instances
+            ]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)

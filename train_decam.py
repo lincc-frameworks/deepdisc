@@ -7,60 +7,69 @@ from detectron2.utils.logger import setup_logger
 
 setup_logger()
 
-# import some common libraries
-import numpy as np
-import os, json, cv2, random
 import argparse
+import copy
+import json
 import logging
+import os
+import random
 import sys
+import time
+import weakref
+from typing import Dict, List, Optional
+
+import cv2
+import detectron2.checkpoint as checkpointer
+import detectron2.data as data
+import detectron2.data.transforms as T
+import detectron2.modeling as modeler
+import detectron2.solver as solver
+import detectron2.utils.comm as comm
+import imgaug.augmenters as iaa
+import imgaug.augmenters.blur as blur
+import imgaug.augmenters.flip as flip
 
 # from google.colab.patches import cv2_imshow
 import matplotlib.pyplot as plt
 
+# import some common libraries
+import numpy as np
+import torch
+
 # import some common detectron2 utilities
 from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
-from detectron2.data import build_detection_train_loader
-from detectron2.engine import default_argument_parser, default_setup, hooks, launch
-from typing import Dict, List, Optional
-import detectron2.solver as solver
-import detectron2.modeling as modeler
-import detectron2.data as data
-import detectron2.data.transforms as T
-import detectron2.checkpoint as checkpointer
+from detectron2.data import (
+    DatasetCatalog,
+    MetadataCatalog,
+    build_detection_train_loader,
+)
 from detectron2.data import detection_utils as utils
-import detectron2.utils.comm as comm
-
-import weakref
-import copy
-import torch
-import time
-
-import imgaug.augmenters as iaa
+from detectron2.engine import (
+    DefaultPredictor,
+    default_argument_parser,
+    default_setup,
+    hooks,
+    launch,
+)
+from detectron2.utils.visualizer import Visualizer
 
 from astrodet import astrodet as toolkit
-from astrodet.astrodet import read_image
 from astrodet import detectron as detectron_addons
+
+# Prettify the plotting
+from astrodet.astrodet import read_image, set_mpl_style
 
 # Custom Aug classes have been added to detectron source files
 from astrodet.detectron import CustomAug
 
-import imgaug.augmenters.flip as flip
-import imgaug.augmenters.blur as blur
-
-
-# Prettify the plotting
-from astrodet.astrodet import set_mpl_style
-
 set_mpl_style()
 
 
-from detectron2.structures import BoxMode
-from astropy.io import fits
 import glob
+
+from astropy.io import fits
+from detectron2.structures import BoxMode
 
 
 def get_data_from_json(file):
@@ -91,7 +100,9 @@ def main(dataset_names, train_head, args):
         filenames_dir = os.path.join(dirpath, d)
         # DatasetCatalog.register("astro_" + d, lambda: get_astro_dicts(filenames_dir))
         # MetadataCatalog.get("astro_" + d).set(thing_classes=["star", "galaxy"], things_colors = ['blue', 'gray'])
-        DatasetCatalog.register("astro_" + d, lambda: get_data_from_json(filenames_dir + ".json"))
+        DatasetCatalog.register(
+            "astro_" + d, lambda: get_data_from_json(filenames_dir + ".json")
+        )
         MetadataCatalog.get("astro_" + d).set(
             thing_classes=["star", "galaxy"], things_colors=["blue", "gray"]
         )
@@ -103,7 +114,9 @@ def main(dataset_names, train_head, args):
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file(cfgfile))  # Get model structure
     cfg.DATASETS.TRAIN = "astro_train"  # Register Metadata
-    cfg.DATASETS.TEST = "astro_val"  # Config calls this TEST, but it should be the val dataset
+    cfg.DATASETS.TEST = (
+        "astro_val"  # Config calls this TEST, but it should be the val dataset
+    )
     cfg.TEST.EVAL_PERIOD = 40
     cfg.DATALOADER.NUM_WORKERS = 1
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = (
@@ -118,9 +131,7 @@ def main(dataset_names, train_head, args):
     cfg.INPUT.MAX_SIZE_TRAIN = 512
 
     cfg.MODEL.ANCHOR_GENERATOR.SIZES = [[8, 16, 32, 64, 128]]
-    cfg.SOLVER.IMS_PER_BATCH = (
-        4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
-    )
+    cfg.SOLVER.IMS_PER_BATCH = 4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
 
     cfg.OUTPUT_DIR = output_dir
     cfg.TEST.DETECTIONS_PER_IMAGE = 1000
@@ -149,7 +160,9 @@ def main(dataset_names, train_head, args):
 
     if train_head:
         # Step 1)
-        cfg.MODEL.BACKBONE.FREEZE_AT = 4  # Initial re-training of the head layers (i.e. freeze the backbone)
+        cfg.MODEL.BACKBONE.FREEZE_AT = (
+            4  # Initial re-training of the head layers (i.e. freeze the backbone)
+        )
         cfg.SOLVER.BASE_LR = 0.001
         cfg.SOLVER.STEPS = []  # do not decay learning rate for retraining head layers
         cfg.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
@@ -159,9 +172,13 @@ def main(dataset_names, train_head, args):
         init_coco_weights = True  # Start training from MS COCO weights
 
         if init_coco_weights:
-            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfgfile)  # Initialize from MS COCO
+            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+                cfgfile
+            )  # Initialize from MS COCO
         else:
-            cfg.MODEL.WEIGHTS = os.path.join(output_dir, "model_temp.pth")  # Initialize from a local weights
+            cfg.MODEL.WEIGHTS = os.path.join(
+                output_dir, "model_temp.pth"
+            )  # Initialize from a local weights
 
         print(cfg)
 
@@ -169,11 +186,17 @@ def main(dataset_names, train_head, args):
         model = modeler.build_model(cfg)
         optimizer = solver.build_optimizer(cfg, model)
 
-        _train_mapper = toolkit.train_mapper_cls(normalize=args.norm, ceil_percentile=99.99)
-        _test_mapper = toolkit.test_mapper_cls(normalize=args.norm, ceil_percentile=99.99)
+        _train_mapper = toolkit.train_mapper_cls(
+            normalize=args.norm, ceil_percentile=99.99
+        )
+        _test_mapper = toolkit.test_mapper_cls(
+            normalize=args.norm, ceil_percentile=99.99
+        )
 
         loader = data.build_detection_train_loader(cfg, mapper=_train_mapper)
-        test_loader = data.build_detection_test_loader(cfg, cfg.DATASETS.TEST, mapper=_test_mapper)
+        test_loader = data.build_detection_test_loader(
+            cfg, cfg.DATASETS.TEST, mapper=_test_mapper
+        )
 
         saveHook = detectron_addons.SaveHook()
         saveHook.set_output_name(output_name)
@@ -202,15 +225,23 @@ def main(dataset_names, train_head, args):
         cfg.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
         cfg.SOLVER.WARMUP_ITERS = 0
         cfg.SOLVER.MAX_ITER = efinal  # for LR scheduling
-        cfg.MODEL.WEIGHTS = os.path.join(output_dir, output_name + ".pth")  # Initialize from a local weights
+        cfg.MODEL.WEIGHTS = os.path.join(
+            output_dir, output_name + ".pth"
+        )  # Initialize from a local weights
 
-        _train_mapper = toolkit.train_mapper_cls(normalize=args.norm, ceil_percentile=args.cp)
-        _test_mapper = toolkit.test_mapper_cls(normalize=args.norm, ceil_percentile=args.cp)
+        _train_mapper = toolkit.train_mapper_cls(
+            normalize=args.norm, ceil_percentile=args.cp
+        )
+        _test_mapper = toolkit.test_mapper_cls(
+            normalize=args.norm, ceil_percentile=args.cp
+        )
 
         model = modeler.build_model(cfg)
         optimizer = solver.build_optimizer(cfg, model)
         loader = data.build_detection_train_loader(cfg, mapper=_train_mapper)
-        test_loader = data.build_detection_test_loader(cfg, cfg.DATASETS.TEST, mapper=_test_mapper)
+        test_loader = data.build_detection_test_loader(
+            cfg, cfg.DATASETS.TEST, mapper=_test_mapper
+        )
 
         saveHook = detectron_addons.SaveHook()
         saveHook.set_output_name(output_name)
@@ -255,17 +286,27 @@ Run on multiple machines:
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
+    parser.add_argument(
+        "--config-file", default="", metavar="FILE", help="path to config file"
+    )
     parser.add_argument(
         "--resume",
         action="store_true",
         help="Whether to attempt to resume from the checkpoint directory. "
         "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
     )
-    parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
-    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
-    parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
-    parser.add_argument("--run-name", type=str, default="baseline", help="output name for run")
+    parser.add_argument(
+        "--eval-only", action="store_true", help="perform evaluation only"
+    )
+    parser.add_argument(
+        "--num-gpus", type=int, default=1, help="number of gpus *per machine*"
+    )
+    parser.add_argument(
+        "--num-machines", type=int, default=1, help="total number of machines"
+    )
+    parser.add_argument(
+        "--run-name", type=str, default="baseline", help="output name for run"
+    )
     parser.add_argument(
         "--cfgfile",
         type=str,
@@ -274,18 +315,35 @@ Run on multiple machines:
     )
     parser.add_argument("--norm", type=str, default="lupton", help="contrast scaling")
     parser.add_argument(
-        "--data-dir", type=str, default="/home/shared/hsc/decam/decam_data/", help="directory with data"
+        "--data-dir",
+        type=str,
+        default="/home/shared/hsc/decam/decam_data/",
+        help="directory with data",
     )
-    parser.add_argument("--output-dir", type=str, default="./", help="output directory to save model")
     parser.add_argument(
-        "--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)"
+        "--output-dir", type=str, default="./", help="output directory to save model"
     )
-    parser.add_argument("--cp", type=float, default=99.99, help="ceiling percentile for saturation cutoff")
+    parser.add_argument(
+        "--machine-rank",
+        type=int,
+        default=0,
+        help="the rank of this machine (unique per machine)",
+    )
+    parser.add_argument(
+        "--cp",
+        type=float,
+        default=99.99,
+        help="ceiling percentile for saturation cutoff",
+    )
 
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
     # so that users are aware of orphan processes by seeing the port occupied.
-    port = 2**15 + 2**14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
+    port = (
+        2**15
+        + 2**14
+        + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
+    )
     parser.add_argument(
         "--dist-url",
         default="tcp://127.0.0.1:{}".format(port),

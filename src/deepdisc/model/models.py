@@ -1,6 +1,6 @@
-
 from detectron2.config import instantiate
 from detectron2.engine.defaults import create_ddp_model
+
 
 def return_lazy_model(cfg):
     """Return a model formed from a LazyConfig.

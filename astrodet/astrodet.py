@@ -1,123 +1,120 @@
-import sys, os
-import numpy as np
-from detectron2.engine import DefaultTrainer, DefaultPredictor, SimpleTrainer
-from detectron2.engine.defaults import create_ddp_model
-from typing import Dict, List, Optional, Mapping
-import detectron2.solver as solver
-import detectron2.modeling as modeler
-import detectron2.data as data
-import detectron2.data.transforms as T
-from detectron2.data.transforms import Transform
-from detectron2.data.transforms import Augmentation
-import detectron2.checkpoint as checkpointer
-from detectron2.data import detection_utils as utils
-import weakref
 import copy
-import torch
+import os
+import sys
 import time
+import weakref
+from typing import Dict, List, Mapping, Optional
 
 # Some basic setup:
 # Setup detectron2 logger
 import detectron2
+import detectron2.checkpoint as checkpointer
+import detectron2.data as data
+import detectron2.data.transforms as T
+import detectron2.modeling as modeler
+import detectron2.solver as solver
+import numpy as np
+import torch
+from detectron2.data import detection_utils as utils
+from detectron2.data.transforms import Augmentation, Transform
+from detectron2.engine import DefaultPredictor, DefaultTrainer, SimpleTrainer
+from detectron2.engine.defaults import create_ddp_model
 from detectron2.utils.logger import setup_logger
 
 setup_logger()
-from detectron2.utils.logger import log_every_n_seconds
-from detectron2.utils import comm
+import argparse
+import contextlib
+import copy
+import datetime
+import gc
+import glob
+import io
+import itertools
+import json
+import logging
+import os
+import pickle
+import random
+import shutil
+import weakref
+from collections import OrderedDict
+from typing import Optional
 
-# import some common libraries
-import numpy as np
-import os, json, cv2, random
+import cv2
+import detectron2.data.transforms as T
+import detectron2.utils.comm as comm
+import imgaug.augmenters as iaa
+import imgaug.augmenters.flip as flip
 
 # from google.colab.patches import cv2_imshow
 import matplotlib.pyplot as plt
 
+# import some common libraries
+import numpy as np
+import pycocotools.mask as mask_util
+import torch
+from astropy.io import fits
+from astropy.visualization import make_lupton_rgb
+
 # import some common detectron2 utilities
 from detectron2 import model_zoo
-from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
-
-
-import argparse
-import logging
-import weakref
-from collections import OrderedDict
-from typing import Optional
-import torch
-from fvcore.nn.precise_bn import get_bn_modules
-from omegaconf import OmegaConf
-from torch.nn.parallel import DistributedDataParallel
-
-import detectron2.data.transforms as T
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.config import CfgNode, LazyConfig, instantiate
+from detectron2.config import CfgNode, LazyConfig, get_cfg, instantiate
 from detectron2.data import (
+    DatasetCatalog,
     MetadataCatalog,
     build_detection_test_loader,
     build_detection_train_loader,
 )
+from detectron2.data.datasets.coco import convert_to_coco_json
+from detectron2.engine.hooks import LRScheduler
 from detectron2.evaluation import (
     DatasetEvaluator,
     inference_on_dataset,
     print_csv_format,
     verify_results,
 )
-from detectron2.modeling import build_model
-from detectron2.solver import build_lr_scheduler, build_optimizer
-from detectron2.utils import comm
-from detectron2.utils.collect_env import collect_env_info
-from detectron2.utils.env import seed_all_rng
-from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import setup_logger
-
-from detectron2.utils.events import EventStorage, get_event_storage
-from detectron2.engine.hooks import LRScheduler
-from fvcore.common.param_scheduler import ParamScheduler
-
-
-import contextlib
-import copy
-import io
-import itertools
-import json
-import logging
-import numpy as np
-import os
-import pickle
-from collections import OrderedDict
-import pycocotools.mask as mask_util
-import torch
-import datetime
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-from tabulate import tabulate
-from iopath.common.file_io import file_lock
-import shutil
-
-import detectron2.utils.comm as comm
 
 # yufeng 6/11 import cocoevaluator
 from detectron2.evaluation.coco_evaluation import COCOEvaluator
-from detectron2.config import CfgNode
-from detectron2.data import MetadataCatalog
-from detectron2.data.datasets.coco import convert_to_coco_json
 from detectron2.evaluation.fast_eval_api import COCOeval_opt
-from detectron2.structures import Boxes, BoxMode, pairwise_iou, PolygonMasks, RotatedBoxes
+from detectron2.modeling import build_model
+from detectron2.solver import build_lr_scheduler, build_optimizer
+from detectron2.structures import (
+    Boxes,
+    BoxMode,
+    PolygonMasks,
+    RotatedBoxes,
+    pairwise_iou,
+)
+from detectron2.utils import comm
+from detectron2.utils.collect_env import collect_env_info
+from detectron2.utils.env import seed_all_rng
+from detectron2.utils.events import (
+    CommonMetricPrinter,
+    EventStorage,
+    JSONWriter,
+    TensorboardXWriter,
+    get_event_storage,
+)
 from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import create_small_table
-import imgaug.augmenters as iaa
-import imgaug.augmenters.flip as flip
-from . import detectron as detectron_addons
-
-
-from detectron2.structures import BoxMode
-import glob
-from astropy.io import fits
+from detectron2.utils.logger import (
+    create_small_table,
+    log_every_n_seconds,
+    setup_logger,
+)
+from detectron2.utils.visualizer import Visualizer
+from fvcore.common.param_scheduler import ParamScheduler
+from fvcore.nn.precise_bn import get_bn_modules
+from iopath.common.file_io import file_lock
+from omegaconf import OmegaConf
 from PIL import Image, ImageEnhance
-from astropy.visualization import make_lupton_rgb
-import gc
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+from tabulate import tabulate
+from torch.nn.parallel import DistributedDataParallel
+
+from . import detectron as detectron_addons
 
 
 def set_mpl_style():
@@ -431,7 +428,11 @@ class COCOeval_opt_custom(COCOeval_opt):
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
-            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
+            print(
+                "useSegm (deprecated) is not None. Running {} evaluation".format(
+                    p.iouType
+                )
+            )
         print("Evaluate annotation type *{}*".format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
@@ -447,7 +448,11 @@ class COCOeval_opt_custom(COCOeval_opt):
             computeIoU = self.computeIoU
         elif p.iouType == "keypoints":
             computeIoU = self.computeOks
-        self.ious = {(imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds}
+        self.ious = {
+            (imgId, catId): computeIoU(imgId, catId)
+            for imgId in p.imgIds
+            for catId in catIds
+        }
         evaluateImg = self.evaluateImg
         maxDet = p.maxDets[-1]
         self.evalImgs = [
@@ -481,7 +486,9 @@ class COCOeval_opt_custom(COCOeval_opt):
         K = len(p.catIds) if p.useCats else 1
         A = len(p.areaRng)
         M = len(p.maxDets)
-        precision = -np.ones((T, R, K, A, M))  # -1 for the precision of absent categories
+        precision = -np.ones(
+            (T, R, K, A, M)
+        )  # -1 for the precision of absent categories
         recall = -np.ones((T, K, A, M))
         scores = -np.ones((T, R, K, A, M))
 
@@ -498,7 +505,9 @@ class COCOeval_opt_custom(COCOeval_opt):
         # get inds to evaluate
         k_list = [n for n, k in enumerate(p.catIds) if k in setK]
         m_list = [m for n, m in enumerate(p.maxDets) if m in setM]
-        a_list = [n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA]
+        a_list = [
+            n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA
+        ]
         i_list = [n for n, i in enumerate(p.imgIds) if i in setI]
         I0 = len(_pe.imgIds)
         A0 = len(_pe.areaRng)
@@ -519,8 +528,12 @@ class COCOeval_opt_custom(COCOeval_opt):
                     inds = np.argsort(-dtScores, kind="mergesort")
                     dtScoresSorted = dtScores[inds]
 
-                    dtm = np.concatenate([e["dtMatches"][:, 0:maxDet] for e in E], axis=1)[:, inds]
-                    dtIg = np.concatenate([e["dtIgnore"][:, 0:maxDet] for e in E], axis=1)[:, inds]
+                    dtm = np.concatenate(
+                        [e["dtMatches"][:, 0:maxDet] for e in E], axis=1
+                    )[:, inds]
+                    dtIg = np.concatenate(
+                        [e["dtIgnore"][:, 0:maxDet] for e in E], axis=1
+                    )[:, inds]
                     gtIg = np.concatenate([e["gtIgnore"] for e in E])
 
                     npig = np.count_nonzero(gtIg == 0)
@@ -621,9 +634,15 @@ class COCOeval_opt_custom(COCOeval_opt):
             stats[0] = _summarize(1)
             stats[1] = _summarize(1, iouThr=0.5, maxDets=self.params.maxDets[2])
             stats[2] = _summarize(1, iouThr=0.75, maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1, areaRng="small", iouThr=0.5, maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(1, areaRng="medium", iouThr=0.5, maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(1, areaRng="large", iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[3] = _summarize(
+                1, areaRng="small", iouThr=0.5, maxDets=self.params.maxDets[2]
+            )
+            stats[4] = _summarize(
+                1, areaRng="medium", iouThr=0.5, maxDets=self.params.maxDets[2]
+            )
+            stats[5] = _summarize(
+                1, areaRng="large", iouThr=0.5, maxDets=self.params.maxDets[2]
+            )
             stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
             stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
             stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
@@ -680,7 +699,9 @@ def _evaluate_predictions_on_coco(
             c.pop("bbox", None)
 
     coco_dt = coco_gt.loadRes(coco_results)
-    coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(coco_gt, coco_dt, iou_type)
+    coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(
+        coco_gt, coco_dt, iou_type
+    )
     # change COCOeval_opt_custom to COCO_eval_opt to call the default function
     print("++++++++++", type(coco_eval))
     if img_ids is not None:
@@ -689,7 +710,9 @@ def _evaluate_predictions_on_coco(
     if iou_type == "keypoints":
         # Use the COCO default keypoint OKS sigmas unless overrides are specified
         if kpt_oks_sigmas:
-            assert hasattr(coco_eval.params, "kpt_oks_sigmas"), "pycocotools is too old!"
+            assert hasattr(
+                coco_eval.params, "kpt_oks_sigmas"
+            ), "pycocotools is too old!"
             coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
         # COCOAPI requires every detection and every gt to have keypoints, so
         # we just take the first entry from both
@@ -704,9 +727,7 @@ def _evaluate_predictions_on_coco(
             "http://cocodataset.org/#keypoints-eval."
         )
 
-    coco_eval.params.maxDets = (
-        max_dets_per_image  # by default it is [1,10,100], our datasets have more than 100 instances
-    )
+    coco_eval.params.maxDets = max_dets_per_image  # by default it is [1,10,100], our datasets have more than 100 instances
     coco_eval.params.areaRng = areaRng
     coco_eval.evaluate_custom()
     coco_eval.accumulate_custom()
@@ -740,13 +761,18 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
 
     # unmap the category mapping ids for COCO
     if hasattr(metadata, "thing_dataset_id_to_contiguous_id"):
-        reverse_id_mapping = {v: k for k, v in metadata.thing_dataset_id_to_contiguous_id.items()}
-        reverse_id_mapper = lambda contiguous_id: reverse_id_mapping[contiguous_id]  # noqa
+        reverse_id_mapping = {
+            v: k for k, v in metadata.thing_dataset_id_to_contiguous_id.items()
+        }
+        reverse_id_mapper = lambda contiguous_id: reverse_id_mapping[
+            contiguous_id
+        ]  # noqa
     else:
         reverse_id_mapper = lambda contiguous_id: contiguous_id  # noqa
 
     categories = [
-        {"id": reverse_id_mapper(id), "name": name} for id, name in enumerate(metadata.thing_classes)
+        {"id": reverse_id_mapper(id), "name": name}
+        for id, name in enumerate(metadata.thing_classes)
     ]
 
     logger.info("Converting dataset dicts into COCO format")
@@ -771,7 +797,9 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
             bbox = annotation["bbox"]
             if isinstance(bbox, np.ndarray):
                 if bbox.ndim != 1:
-                    raise ValueError(f"bbox has to be 1-dimensional. Got shape={bbox.shape}.")
+                    raise ValueError(
+                        f"bbox has to be 1-dimensional. Got shape={bbox.shape}."
+                    )
                 bbox = bbox.tolist()
             if len(bbox) not in [4, 5]:
                 raise ValueError(f"bbox has to has length 4 or 5. Got {bbox}.")
@@ -826,15 +854,20 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
             if mind != len(mbins) - 1 and mind != -1:
                 coco_annotation["ignore"] = (
                     0
-                    if annotation.get("imag") > mbins[mind] and annotation.get("imag") <= mbins[mind + 1]
+                    if annotation.get("imag") > mbins[mind]
+                    and annotation.get("imag") <= mbins[mind + 1]
                     else 1
                 )
             elif mind == len(mbins) - 1:
-                coco_annotation["ignore"] = 0 if annotation.get("imag") > mbins[mind] else 1
+                coco_annotation["ignore"] = (
+                    0 if annotation.get("imag") > mbins[mind] else 1
+                )
             else:
                 coco_annotation["ignore"] = int(annotation.get("ignore", 0))
 
-            coco_annotation["category_id"] = int(reverse_id_mapper(annotation["category_id"]))
+            coco_annotation["category_id"] = int(
+                reverse_id_mapper(annotation["category_id"])
+            )
 
             # Add optional fields
             if "keypoints" in annotation:
@@ -851,19 +884,29 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
 
             coco_annotations.append(coco_annotation)
 
-    logger.info("Conversion finished, " f"#images: {len(coco_images)}, #annotations: {len(coco_annotations)}")
+    logger.info(
+        "Conversion finished, "
+        f"#images: {len(coco_images)}, #annotations: {len(coco_annotations)}"
+    )
 
     info = {
         "date_created": str(datetime.datetime.now()),
         "description": "Automatically generated COCO json file for Detectron2.",
     }
-    coco_dict = {"info": info, "images": coco_images, "categories": categories, "licenses": None}
+    coco_dict = {
+        "info": info,
+        "images": coco_images,
+        "categories": categories,
+        "licenses": None,
+    }
     if len(coco_annotations) > 0:
         coco_dict["annotations"] = coco_annotations
     return coco_dict
 
 
-def convert_to_coco_json(dataset_name, output_file, mbins=[0, 1], mind=-1, allow_cached=True):
+def convert_to_coco_json(
+    dataset_name, output_file, mbins=[0, 1], mind=-1, allow_cached=True
+):
     """
     Converts dataset into COCO format and saves it to a json file.
     dataset_name must be registered in DatasetCatalog and in detectron2's standard format.
@@ -885,7 +928,9 @@ def convert_to_coco_json(dataset_name, output_file, mbins=[0, 1], mind=-1, allow
                 "You need to clear the cache file if your dataset has been modified."
             )
         else:
-            logger.info(f"Converting annotations of dataset '{dataset_name}' to COCO format ...)")
+            logger.info(
+                f"Converting annotations of dataset '{dataset_name}' to COCO format ...)"
+            )
             coco_dict = convert_to_coco_dict(dataset_name, mbins, mind, logger)
 
             logger.info(f"Caching COCO format annotations at '{output_file}' ...")
@@ -965,7 +1010,9 @@ class COCOEvaluatorRecall(COCOEvaluator):
         self._output_dir = output_dir
 
         if use_fast_impl and (COCOeval_opt is COCOeval):
-            self._logger.info("Fast COCO eval is not built. Falling back to official COCO eval.")
+            self._logger.info(
+                "Fast COCO eval is not built. Falling back to official COCO eval."
+            )
             use_fast_impl = False
         self._use_fast_impl = use_fast_impl
 
@@ -981,11 +1028,18 @@ class COCOEvaluatorRecall(COCOEvaluator):
         self._max_dets_per_image = max_dets_per_image
 
         if areaRng is None:
-            areaRng = [[0, 10000000000.0], [0, 1024], [1024, 9216], [9216, 10000000000.0]]
+            areaRng = [
+                [0, 10000000000.0],
+                [0, 1024],
+                [1024, 9216],
+                [9216, 10000000000.0],
+            ]
         self._areaRng = areaRng
 
         if tasks is not None and isinstance(tasks, CfgNode):
-            kpt_oks_sigmas = tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
+            kpt_oks_sigmas = (
+                tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
+            )
             self._logger.warn(
                 "COCO Evaluator instantiated using config, this is deprecated behavior."
                 " Please pass in explicit arguments instead."
@@ -1000,13 +1054,16 @@ class COCOEvaluatorRecall(COCOEvaluator):
         if not hasattr(self._metadata, "json_file"):
             if output_dir is None:
                 raise ValueError(
-                    "output_dir must be provided to COCOEvaluator " "for datasets not in COCO format."
+                    "output_dir must be provided to COCOEvaluator "
+                    "for datasets not in COCO format."
                 )
             self._logger.info(f"Trying to convert '{dataset_name}' to COCO format ...")
 
             cache_path = os.path.join(output_dir, f"{dataset_name}_coco_format.json")
             self._metadata.json_file = cache_path
-            convert_to_coco_json(dataset_name, cache_path, allow_cached=allow_cached_coco)
+            convert_to_coco_json(
+                dataset_name, cache_path, allow_cached=allow_cached_coco
+            )
         json_file = PathManager.get_local_path(self._metadata.json_file)
         print("Loading ", json_file)
         with contextlib.redirect_stdout(io.StringIO()):
@@ -1028,10 +1085,15 @@ class COCOEvaluatorRecall(COCOEvaluator):
 
         # unmap the category ids for COCO
         if hasattr(self._metadata, "thing_dataset_id_to_contiguous_id"):
-            dataset_id_to_contiguous_id = self._metadata.thing_dataset_id_to_contiguous_id
+            dataset_id_to_contiguous_id = (
+                self._metadata.thing_dataset_id_to_contiguous_id
+            )
             all_contiguous_ids = list(dataset_id_to_contiguous_id.values())
             num_classes = len(all_contiguous_ids)
-            assert min(all_contiguous_ids) == 0 and max(all_contiguous_ids) == num_classes - 1
+            assert (
+                min(all_contiguous_ids) == 0
+                and max(all_contiguous_ids) == num_classes - 1
+            )
 
             reverse_id_mapping = {v: k for k, v in dataset_id_to_contiguous_id.items()}
             for result in coco_results:
@@ -1082,7 +1144,9 @@ class COCOEvaluatorRecall(COCOEvaluator):
 
             self.coco_eval_list.append(coco_eval)
 
-            res = self._derive_coco_results(coco_eval, task, class_names=self._metadata.get("thing_classes"))
+            res = self._derive_coco_results(
+                coco_eval, task, class_names=self._metadata.get("thing_classes")
+            )
             self._results[task] = res
 
     def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
@@ -1110,10 +1174,15 @@ class COCOEvaluatorRecall(COCOEvaluator):
         # the standard metrics
         print(type(coco_eval))
         results = {
-            metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
+            metric: float(
+                coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan"
+            )
             for idx, metric in enumerate(metrics)
         }
-        self._logger.info("Evaluation results for {}: \n".format(iou_type) + create_small_table(results))
+        self._logger.info(
+            "Evaluation results for {}: \n".format(iou_type)
+            + create_small_table(results)
+        )
         if not np.isfinite(sum(results.values())):
             self._logger.info("Some metrics cannot be computed and is shown as NaN.")
 
@@ -1139,7 +1208,9 @@ class COCOEvaluatorRecall(COCOEvaluator):
         # tabulate it
         N_COLS = min(6, len(results_per_category) * 2)
         results_flatten = list(itertools.chain(*results_per_category))
-        results_2d = itertools.zip_longest(*[results_flatten[i::N_COLS] for i in range(N_COLS)])
+        results_2d = itertools.zip_longest(
+            *[results_flatten[i::N_COLS] for i in range(N_COLS)]
+        )
         table = tabulate(
             results_2d,
             tablefmt="pipe",
@@ -1696,7 +1767,9 @@ class train_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            utils.transform_instance_annotations(
+                annotation, [transform], image.shape[1:]
+            )
             for annotation in dataset_dict.pop("annotations")
         ]
         return {
@@ -1760,7 +1833,9 @@ class test_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            utils.transform_instance_annotations(
+                annotation, [transform], image.shape[1:]
+            )
             for annotation in dataset_dict.pop("annotations")
         ]
         return {

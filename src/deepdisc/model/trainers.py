@@ -1,12 +1,11 @@
-from deepdisc.model import models
-from deepdisc.model import loaders
-from astrodet.astrodet import LazyAstroTrainer
-from astrodet import detectron as detectron_addons
 from detectron2.config import instantiate
 
+from astrodet import detectron as detectron_addons
+from astrodet.astrodet import LazyAstroTrainer
+from deepdisc.model import loaders, models
 
 
-def return_lazy_trainer(model,loader,optimizer,cfg,cfg_loader,hooklist):
+def return_lazy_trainer(model, loader, optimizer, cfg, cfg_loader, hooklist):
     """Return a trainer for models built on LazyConfigs
 
     Parameters
@@ -14,7 +13,7 @@ def return_lazy_trainer(model,loader,optimizer,cfg,cfg_loader,hooklist):
     model : torch model
         pointer to file
     loader : detectron2 data loader
-    
+
     optimizer: detectron2 optimizer
 
     cfg : .py file
@@ -22,7 +21,7 @@ def return_lazy_trainer(model,loader,optimizer,cfg,cfg_loader,hooklist):
 
     cfg_loader: .yml file
         The config used for the data loaders
-    
+
     hooklist: list
         The list of hooks to use for the trainer
 
@@ -52,6 +51,7 @@ def return_savehook(output_name):
     saveHook.set_output_name(output_name)
     return saveHook
 
+
 def return_schedulerhook(optimizer):
     """Returns a hook for the learning rate
 
@@ -67,7 +67,8 @@ def return_schedulerhook(optimizer):
     schedulerHook = detectron_addons.CustomLRScheduler(optimizer=optimizer)
     return schedulerHook
 
-def return_evallosshook(val_per,model,test_loader):
+
+def return_evallosshook(val_per, model, test_loader):
     """Returns a hook for evaulating the loss
 
     Parameters
@@ -85,6 +86,7 @@ def return_evallosshook(val_per,model,test_loader):
     """
     lossHook = detectron_addons.LossEvalHook(val_per, model, test_loader)
     return lossHook
+
 
 def return_optimizer(cfg):
     """Returns an optimizer for training

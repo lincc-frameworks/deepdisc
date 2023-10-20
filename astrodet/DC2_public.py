@@ -1,15 +1,20 @@
-from astropy.wcs import WCS
-from astropy.nddata import Cutout2D
-import os
 import glob
-import numpy as np
+import os
+
 import matplotlib.pyplot as plt
+import numpy as np
 import scarlet
 from astropy.io import fits
+from astropy.nddata import Cutout2D
+from astropy.wcs import WCS
 
 
 def get_DC2_data(
-    filters=["u", "g", "r", "i", "z", "y"], tract=10054, patch=[0, 0], coord=None, cutout_size=[128, 128]
+    filters=["u", "g", "r", "i", "z", "y"],
+    tract=10054,
+    patch=[0, 0],
+    coord=None,
+    cutout_size=[128, 128],
 ):
     """
     Get HSC data given tract/patch info or SkyCoord
@@ -59,7 +64,9 @@ def get_DC2_data(
     datas = []
 
     for f in filters:
-        filepath = os.path.join("/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"])
+        filepath = os.path.join(
+            "/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"]
+        )
 
         # print(f'Loading "{filepath}".')
         # try:
@@ -127,7 +134,9 @@ def get_cutout(tract, patch, sp, plot=True):
 
     # coord = [dat.shape[2]/2,dat.shape[1]/2]
     # datsm,cutout = get_DC2_data(tract=tract,patch=patch,coord=coord,cutout_size=(dat.shape[1]//2,dat.shape[2]//2))
-    datsm, cutout = get_DC2_data(tract=tract, patch=patch, coord=coord, cutout_size=sub_shape)
+    datsm, cutout = get_DC2_data(
+        tract=tract, patch=patch, coord=coord, cutout_size=sub_shape
+    )
     # datas = datas_blocks[sp,:,:,:]
     if plot:
         fig, ax = plt.subplots(1, 2, figsize=(10, 10))

@@ -1,15 +1,15 @@
-import sys, os
-import numpy as np
-import astropy.io.fits as fits
-from astropy.wcs import WCS
+import os
+import sys
 
+import astropy.io.fits as fits
 import matplotlib
 import matplotlib.pyplot as plt
-
+import numpy as np
 from astropy.coordinates import SkyCoord, match_coordinates_sky
 from astropy.nddata import Cutout2D
-from PIL import Image, ImageEnhance
 from astropy.visualization import make_lupton_rgb
+from astropy.wcs import WCS
+from PIL import Image, ImageEnhance
 
 
 def get_tract_patch_from_coord(coord, f="data/hsc/tracts_patches_UD-COSMOS.txt"):
@@ -54,7 +54,12 @@ def get_tract_patch_from_coord(coord, f="data/hsc/tracts_patches_UD-COSMOS.txt")
 
 
 def get_hsc_data(
-    dirpath, filters=["g", "r", "i"], tract=10054, patch=[0, 0], coord=None, cutout_size=[128, 128]
+    dirpath,
+    filters=["g", "r", "i"],
+    tract=10054,
+    patch=[0, 0],
+    coord=None,
+    cutout_size=[128, 128],
 ):
     """
     Get HSC data given tract/patch info or SkyCoord
@@ -87,7 +92,9 @@ def get_hsc_data(
     filters = [f.upper() for f in filters]
 
     if coord is not None:
-        print("Overriding tract/patch info and looking for HSC file at requested coordinates.")
+        print(
+            "Overriding tract/patch info and looking for HSC file at requested coordinates."
+        )
         tract, patch = get_tract_patch_from_coord(coord)
 
     datas = []
@@ -120,7 +127,12 @@ def get_hsc_data(
 
 
 def get_hsc_DR3_data(
-    dirpath, filters=["g", "r", "i"], tract=10054, patch=[0, 0], coord=None, cutout_size=[128, 128]
+    dirpath,
+    filters=["g", "r", "i"],
+    tract=10054,
+    patch=[0, 0],
+    coord=None,
+    cutout_size=[128, 128],
 ):
     """
     Get HSC data given tract/patch info or SkyCoord
@@ -153,13 +165,17 @@ def get_hsc_DR3_data(
     filters = [f.upper() for f in filters]
 
     if coord is not None:
-        print("Overriding tract/patch info and looking for HSC file at requested coordinates.")
+        print(
+            "Overriding tract/patch info and looking for HSC file at requested coordinates."
+        )
         tract, patch = get_tract_patch_from_coord(coord)
 
     datas = []
 
     for f in filters:
-        filepath = os.path.join(dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits")
+        filepath = os.path.join(
+            dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits"
+        )
 
         print(f'Loading "{filepath}".')
         # try:
