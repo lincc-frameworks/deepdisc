@@ -56,20 +56,20 @@ repos:
 
 
     # Analyze the src code style and report code that doesn't adhere.
-#  - repo: local
-#    hooks:
-#      - id: pylint
-#        name: pylint (python files in src/)
-#        entry: pylint
-#        language: system
-#        types: [python]
-#        files: ^src/
-#        args:
-#          [
-#            "-rn", # Only display messages
-#            "-sn", # Don't display the score
-#            "--rcfile=src/.pylintrc",
-#          ]
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint (python files in src/)
+        entry: pylint
+        language: system
+        types: [python]
+        files: ^src/
+        args:
+          [
+            "-rn", # Only display messages
+            "-sn", # Don't display the score
+            "--rcfile=src/.pylintrc",
+          ]
 
     # Analyze the tests code style and report code that doesn't adhere.
   - repo: local
