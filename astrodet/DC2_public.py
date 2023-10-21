@@ -64,9 +64,7 @@ def get_DC2_data(
     datas = []
 
     for f in filters:
-        filepath = os.path.join(
-            "/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"]
-        )
+        filepath = os.path.join("/", *[dirpath, f, tract, patch, f"calexp-{f}-{tract}-{patch}.fits"])
 
         # print(f'Loading "{filepath}".')
         # try:
@@ -134,9 +132,7 @@ def get_cutout(tract, patch, sp, plot=True):
 
     # coord = [dat.shape[2]/2,dat.shape[1]/2]
     # datsm,cutout = get_DC2_data(tract=tract,patch=patch,coord=coord,cutout_size=(dat.shape[1]//2,dat.shape[2]//2))
-    datsm, cutout = get_DC2_data(
-        tract=tract, patch=patch, coord=coord, cutout_size=sub_shape
-    )
+    datsm, cutout = get_DC2_data(tract=tract, patch=patch, coord=coord, cutout_size=sub_shape)
     # datas = datas_blocks[sp,:,:,:]
     if plot:
         fig, ax = plt.subplots(1, 2, figsize=(10, 10))

@@ -74,9 +74,7 @@ parser = argparse.ArgumentParser()
 
 
 parser.add_argument("--run-name", default="Swin_test.pth", type=str)
-parser.add_argument(
-    "--output-dir", default="/home/shared/hsc/HSC/HSC_DR3/models/withclasses/", type=str
-)
+parser.add_argument("--output-dir", default="/home/shared/hsc/HSC/HSC_DR3/models/withclasses/", type=str)
 parser.add_argument(
     "--savedir",
     default="/home/shared/hsc/HSC/HSC_DR3/models/withclasses/eval/",
@@ -158,11 +156,11 @@ def return_predictor(
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file(cfgfile))  # Get model structure
     cfg.DATASETS.TRAIN = "astro_train"  # Register Metadata
-    cfg.DATASETS.TEST = (
-        "astro_test",
-    )  # Config calls this TEST, but it should be the val dataset
+    cfg.DATASETS.TEST = ("astro_test",)  # Config calls this TEST, but it should be the val dataset
     cfg.DATALOADER.NUM_WORKERS = 1
-    cfg.SOLVER.IMS_PER_BATCH = 4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
+    cfg.SOLVER.IMS_PER_BATCH = (
+        4  # this is images per iteration. 1 epoch is len(images)/(ims_per_batch iterations*num_gpus)
+    )
     cfg.SOLVER.BASE_LR = 0.001
     cfg.SOLVER.STEPS = []  # do not decay learning rate for retraining
     cfg.SOLVER.MAX_ITER = 100  # for DefaultTrainer
@@ -187,9 +185,7 @@ def return_predictor(
     cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE = 512
     cfg.MODEL.ANCHOR_GENERATOR.SIZES = [[8, 16, 32, 64, 128]]
 
-    cfg.MODEL.WEIGHTS = os.path.join(
-        cfg.OUTPUT_DIR, run_name
-    )  # path to the model we just trained
+    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, run_name)  # path to the model we just trained
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = roi_thresh  # set a custom testing threshold
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.3
     cfg.MODEL.ROI_BOX_HEAD.GAMMA = 1
@@ -235,9 +231,7 @@ def return_predictor_transformer(
 
     cfg = LazyConfig.load(cfgfile)
 
-    metadata = MetadataCatalog.get(
-        cfg.dataloader.test.dataset.names
-    )  # to get labels from ids
+    metadata = MetadataCatalog.get(cfg.dataloader.test.dataset.names)  # to get labels from ids
     classes = metadata.thing_classes
 
     cfg.model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
@@ -287,9 +281,7 @@ def get_matched_object_classes(dataset_dicts, predictor):
             # Convert to the mode model expects
             gt_boxes = BoxMode.convert(gt_boxes, BoxMode.XYWH_ABS, BoxMode.XYXY_ABS)
             gt_boxes = structures.Boxes(torch.Tensor(gt_boxes))
-            img = toolkit.read_image_hsc(
-                filenames, normalize=args.norm, dtype=dtype, A=1000, do_norm=False
-            )
+            img = toolkit.read_image_hsc(filenames, normalize=args.norm, dtype=dtype, A=1000, do_norm=False)
             outputs = predictor(img)
             pred_boxes = outputs["instances"].pred_boxes
             pred_boxes = pred_boxes.to("cpu")
@@ -309,9 +301,7 @@ def get_matched_object_classes(dataset_dicts, predictor):
         pred_classes = []
         for gti, dti in zip(matched_gts, matched_dts):
             true_class = d["annotations"][int(gti)]["category_id"]
-            pred_class = (
-                outputs["instances"].pred_classes.cpu().detach().numpy()[int(dti)]
-            )
+            pred_class = outputs["instances"].pred_classes.cpu().detach().numpy()[int(dti)]
             true_classes.append(true_class)
             pred_classes.append(pred_class)
 
@@ -356,9 +346,7 @@ if bb in ["Swin", "MViTv2"]:
         cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh
     )
 else:
-    predictor, cfg = return_predictor(
-        cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh
-    )
+    predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
 t0 = time.time()
 

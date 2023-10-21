@@ -80,12 +80,8 @@ def write_scarlet_results(
         # (x0, y0, w, h) in absolute floating pixel coordinates
         bbox_h = starlet_source.bbox.shape[1]
         bbox_w = starlet_source.bbox.shape[2]
-        bbox_y = starlet_source.bbox.origin[1] + int(
-            np.floor(bbox_w / 2)
-        )  # y-coord of the source's center
-        bbox_x = starlet_source.bbox.origin[2] + int(
-            np.floor(bbox_w / 2)
-        )  # x-coord of the source's center
+        bbox_y = starlet_source.bbox.origin[1] + int(np.floor(bbox_w / 2))  # y-coord of the source's center
+        bbox_x = starlet_source.bbox.origin[2] + int(np.floor(bbox_w / 2))  # x-coord of the source's center
 
         # Ellipse parameters (a, b, theta) from deblend catalog
         e_a, e_b, e_theta = cat["a"], cat["b"], cat["theta"]
@@ -96,9 +92,7 @@ def write_scarlet_results(
         model_hdr["bbox"] = ",".join(map(str, [bbox_x, bbox_y, bbox_w, bbox_h]))
         model_hdr["area"] = bbox_w * bbox_h
         model_hdr["ell_parm"] = ",".join(map(str, list(ell_parm)))
-        model_hdr[
-            "cat_id"
-        ] = 1  # Category ID #TODO: set categor_id based on if the source is extended or not
+        model_hdr["cat_id"] = 1  # Category ID #TODO: set categor_id based on if the source is extended or not
 
         return model_hdr
 
@@ -108,9 +102,7 @@ def write_scarlet_results(
     filenames = {}
 
     # Filter loop
-    for i, f in enumerate(
-        filters
-    ):  # datas is HSC data array with dimensions [filters, N, N]
+    for i, f in enumerate(filters):  # datas is HSC data array with dimensions [filters, N, N]
         f = f.upper()
 
         # Primary HDU is full image
@@ -158,9 +150,7 @@ def write_scarlet_results(
                 segmask_hdr = _make_hdr(starlet_sources[k], cat)
 
                 # Save each model source k in the image
-                segmask_hdu = fits.ImageHDU(
-                    data=segmentation_masks[k], header=segmask_hdr
-                )
+                segmask_hdu = fits.ImageHDU(data=segmentation_masks[k], header=segmask_hdr)
                 segmask_primary = fits.PrimaryHDU()
 
                 segmask_hdul.append(segmask_hdu)
@@ -168,9 +158,7 @@ def write_scarlet_results(
             save_segmask_hdul = fits.HDUList([segmask_primary, *segmask_hdul])
 
             # Save list of filenames in dict for each band
-            filenames["segmask"] = os.path.join(
-                dirpath, f"{f}-{s}_scarlet_segmask.fits"
-            )
+            filenames["segmask"] = os.path.join(dirpath, f"{f}-{s}_scarlet_segmask.fits")
             save_segmask_hdul.writeto(filenames["segmask"], overwrite=True)
 
     return filenames
@@ -622,9 +610,9 @@ def run_scarlet(
 
     # observation_psf = scarlet.GaussianPSF(sigma=sigma_obs)
     observation_psf = scarlet.ImagePSF(psf)
-    observation = scarlet.Observation(
-        datas, psf=observation_psf, weights=weights, channels=filters
-    ).match(model_frame)
+    observation = scarlet.Observation(datas, psf=observation_psf, weights=weights, channels=filters).match(
+        model_frame
+    )
 
     # Initialize starlet sources to be fit. Assume extended sources for all because
     # we are not looking at all detections in each image
@@ -898,12 +886,8 @@ def get_processed_hsc_DR3_data(
     # print(dirpath,'dirpath')
 
     for f in filters:
-        impath = os.path.join(
-            dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_img.fits"
-        )
-        modpath = os.path.join(
-            dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_model.fits"
-        )
+        impath = os.path.join(dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_img.fits")
+        modpath = os.path.join(dirpath, f"{f}-{tract}-{patch[0]},{patch[1]}-c{sp}_scarlet_model.fits")
         # print(impath, 'impath')
 
         # print(f'Loading "{filepath}".')
@@ -1008,13 +992,9 @@ def return_spliced_sources(sourceG, sourceR, sourceI):
     sources = []
     for source in [sourceG, sourceR, sourceI]:
         if source.shape[0] > wmin:
-            source = source[
-                (source.shape[0] - wmin) // 2 : -(source.shape[0] - wmin) // 2, :
-            ]
+            source = source[(source.shape[0] - wmin) // 2 : -(source.shape[0] - wmin) // 2, :]
         if source.shape[1] > hmin:
-            source = source[
-                :, (source.shape[1] - hmin) // 2 : -(source.shape[1] - hmin) // 2
-            ]
+            source = source[:, (source.shape[1] - hmin) // 2 : -(source.shape[1] - hmin) // 2]
         sources.append(source)
 
     return sources

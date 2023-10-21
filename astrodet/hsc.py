@@ -92,9 +92,7 @@ def get_hsc_data(
     filters = [f.upper() for f in filters]
 
     if coord is not None:
-        print(
-            "Overriding tract/patch info and looking for HSC file at requested coordinates."
-        )
+        print("Overriding tract/patch info and looking for HSC file at requested coordinates.")
         tract, patch = get_tract_patch_from_coord(coord)
 
     datas = []
@@ -165,17 +163,13 @@ def get_hsc_DR3_data(
     filters = [f.upper() for f in filters]
 
     if coord is not None:
-        print(
-            "Overriding tract/patch info and looking for HSC file at requested coordinates."
-        )
+        print("Overriding tract/patch info and looking for HSC file at requested coordinates.")
         tract, patch = get_tract_patch_from_coord(coord)
 
     datas = []
 
     for f in filters:
-        filepath = os.path.join(
-            dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits"
-        )
+        filepath = os.path.join(dirpath, f"HSC-{f}/calexp-HSC-{f}-{tract}-{patch[0]},{patch[1]}.fits")
 
         print(f'Loading "{filepath}".')
         # try:

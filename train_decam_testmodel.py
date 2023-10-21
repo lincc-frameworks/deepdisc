@@ -201,21 +201,15 @@ def main(dataset_names, train_head, args):
     modname = args.modname
     if modname == "swin":
         cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_swin_b_in21k_50ep.py"
-        initwfile = (
-            "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_246a82.pkl"
-        )
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_246a82.pkl"
     elif modname == "mvitv2":
         cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_mvitv2_b_in21k_100ep.py"
-        initwfile = (
-            "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_8c3da3.pkl"
-        )
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_8c3da3.pkl"
 
     elif modname == "vitdet":
         cfgfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/configs/COCO/mask_rcnn_vitdet_b_100ep.py"
         # initwfile = '/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_435fa9.pkl'
-        initwfile = (
-            "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_61ccd1.pkl"
-        )
+        initwfile = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_61ccd1.pkl"
 
     # ### Prepare For Training
     # Training logic:
@@ -227,9 +221,7 @@ def main(dataset_names, train_head, args):
         filenames_dir = os.path.join(dirpath, d)
         # DatasetCatalog.register("astro_" + d, lambda: get_astro_dicts(filenames_dir))
         # MetadataCatalog.get("astro_" + d).set(thing_classes=["star", "galaxy"], things_colors = ['blue', 'gray'])
-        DatasetCatalog.register(
-            "astro_" + d, lambda: get_data_from_json(filenames_dir + ".json")
-        )
+        DatasetCatalog.register("astro_" + d, lambda: get_data_from_json(filenames_dir + ".json"))
         MetadataCatalog.get("astro_" + d).set(
             thing_classes=["star", "galaxy"], things_colors=["blue", "gray"]
         )
@@ -242,9 +234,7 @@ def main(dataset_names, train_head, args):
     cfg = LazyConfig.load(cfgfile)
 
     cfg.train.init_checkpoint = "/home/g4merz/deblend/detectron2/projects/ViTDet/model_final_61ccd1.pkl"  # replace with the path were you have your model
-    metadata = MetadataCatalog.get(
-        cfg.dataloader.test.dataset.names
-    )  # to get labels from ids
+    metadata = MetadataCatalog.get(cfg.dataloader.test.dataset.names)  # to get labels from ids
     classes = metadata.thing_classes
 
     cfg.model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
@@ -283,9 +273,7 @@ def main(dataset_names, train_head, args):
     val_per = epoch
 
     if train_head:
-        cfg.train.init_checkpoint = (
-            initwfile  # replace with the path were you have your model
-        )
+        cfg.train.init_checkpoint = initwfile  # replace with the path were you have your model
         # cfg.train.init_checkpoint =
         # Step 1)
         model = instantiate(cfg.model)
@@ -449,27 +437,17 @@ Run on multiple machines:
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "--config-file", default="", metavar="FILE", help="path to config file"
-    )
+    parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",
         help="Whether to attempt to resume from the checkpoint directory. "
         "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
     )
-    parser.add_argument(
-        "--eval-only", action="store_true", help="perform evaluation only"
-    )
-    parser.add_argument(
-        "--num-gpus", type=int, default=1, help="number of gpus *per machine*"
-    )
-    parser.add_argument(
-        "--num-machines", type=int, default=1, help="total number of machines"
-    )
-    parser.add_argument(
-        "--run-name", type=str, default="baseline", help="output name for run"
-    )
+    parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
+    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
+    parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
+    parser.add_argument("--run-name", type=str, default="baseline", help="output name for run")
     parser.add_argument(
         "--cfgfile",
         type=str,
@@ -483,9 +461,7 @@ Run on multiple machines:
         default="/home/shared/hsc/decam/decam_data/",
         help="directory with data",
     )
-    parser.add_argument(
-        "--output-dir", type=str, default="./", help="output directory to save model"
-    )
+    parser.add_argument("--output-dir", type=str, default="./", help="output directory to save model")
     parser.add_argument(
         "--machine-rank",
         type=int,
@@ -499,9 +475,7 @@ Run on multiple machines:
         help="ceiling percentile for saturation cutoff",
     )
     parser.add_argument("--scheme", type=int, default=1, help="classification scheme")
-    parser.add_argument(
-        "--alphas", type=float, nargs="*", help="weights for focal loss"
-    )
+    parser.add_argument("--alphas", type=float, nargs="*", help="weights for focal loss")
     parser.add_argument("--modname", type=str, default="./", help="")
     parser.add_argument("--stretch", type=float, default=0.5, help="lupton stretch")
     parser.add_argument("--Q", type=float, default=10, help="lupton Q")
@@ -516,11 +490,7 @@ Run on multiple machines:
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
     # so that users are aware of orphan processes by seeing the port occupied.
-    port = (
-        2**15
-        + 2**14
-        + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
-    )
+    port = 2**15 + 2**14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
     parser.add_argument(
         "--dist-url",
         default="tcp://127.0.0.1:{}".format(port),

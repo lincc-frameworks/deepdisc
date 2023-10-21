@@ -428,11 +428,7 @@ class COCOeval_opt_custom(COCOeval_opt):
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
-            print(
-                "useSegm (deprecated) is not None. Running {} evaluation".format(
-                    p.iouType
-                )
-            )
+            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
         print("Evaluate annotation type *{}*".format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
@@ -448,11 +444,7 @@ class COCOeval_opt_custom(COCOeval_opt):
             computeIoU = self.computeIoU
         elif p.iouType == "keypoints":
             computeIoU = self.computeOks
-        self.ious = {
-            (imgId, catId): computeIoU(imgId, catId)
-            for imgId in p.imgIds
-            for catId in catIds
-        }
+        self.ious = {(imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds}
         evaluateImg = self.evaluateImg
         maxDet = p.maxDets[-1]
         self.evalImgs = [
@@ -486,9 +478,7 @@ class COCOeval_opt_custom(COCOeval_opt):
         K = len(p.catIds) if p.useCats else 1
         A = len(p.areaRng)
         M = len(p.maxDets)
-        precision = -np.ones(
-            (T, R, K, A, M)
-        )  # -1 for the precision of absent categories
+        precision = -np.ones((T, R, K, A, M))  # -1 for the precision of absent categories
         recall = -np.ones((T, K, A, M))
         scores = -np.ones((T, R, K, A, M))
 
@@ -505,9 +495,7 @@ class COCOeval_opt_custom(COCOeval_opt):
         # get inds to evaluate
         k_list = [n for n, k in enumerate(p.catIds) if k in setK]
         m_list = [m for n, m in enumerate(p.maxDets) if m in setM]
-        a_list = [
-            n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA
-        ]
+        a_list = [n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA]
         i_list = [n for n, i in enumerate(p.imgIds) if i in setI]
         I0 = len(_pe.imgIds)
         A0 = len(_pe.areaRng)
@@ -528,12 +516,8 @@ class COCOeval_opt_custom(COCOeval_opt):
                     inds = np.argsort(-dtScores, kind="mergesort")
                     dtScoresSorted = dtScores[inds]
 
-                    dtm = np.concatenate(
-                        [e["dtMatches"][:, 0:maxDet] for e in E], axis=1
-                    )[:, inds]
-                    dtIg = np.concatenate(
-                        [e["dtIgnore"][:, 0:maxDet] for e in E], axis=1
-                    )[:, inds]
+                    dtm = np.concatenate([e["dtMatches"][:, 0:maxDet] for e in E], axis=1)[:, inds]
+                    dtIg = np.concatenate([e["dtIgnore"][:, 0:maxDet] for e in E], axis=1)[:, inds]
                     gtIg = np.concatenate([e["gtIgnore"] for e in E])
 
                     npig = np.count_nonzero(gtIg == 0)
@@ -634,15 +618,9 @@ class COCOeval_opt_custom(COCOeval_opt):
             stats[0] = _summarize(1)
             stats[1] = _summarize(1, iouThr=0.5, maxDets=self.params.maxDets[2])
             stats[2] = _summarize(1, iouThr=0.75, maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(
-                1, areaRng="small", iouThr=0.5, maxDets=self.params.maxDets[2]
-            )
-            stats[4] = _summarize(
-                1, areaRng="medium", iouThr=0.5, maxDets=self.params.maxDets[2]
-            )
-            stats[5] = _summarize(
-                1, areaRng="large", iouThr=0.5, maxDets=self.params.maxDets[2]
-            )
+            stats[3] = _summarize(1, areaRng="small", iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[4] = _summarize(1, areaRng="medium", iouThr=0.5, maxDets=self.params.maxDets[2])
+            stats[5] = _summarize(1, areaRng="large", iouThr=0.5, maxDets=self.params.maxDets[2])
             stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
             stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
             stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
@@ -699,9 +677,7 @@ def _evaluate_predictions_on_coco(
             c.pop("bbox", None)
 
     coco_dt = coco_gt.loadRes(coco_results)
-    coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(
-        coco_gt, coco_dt, iou_type
-    )
+    coco_eval = (COCOeval_opt_custom if use_fast_impl else COCOeval)(coco_gt, coco_dt, iou_type)
     # change COCOeval_opt_custom to COCO_eval_opt to call the default function
     print("++++++++++", type(coco_eval))
     if img_ids is not None:
@@ -710,9 +686,7 @@ def _evaluate_predictions_on_coco(
     if iou_type == "keypoints":
         # Use the COCO default keypoint OKS sigmas unless overrides are specified
         if kpt_oks_sigmas:
-            assert hasattr(
-                coco_eval.params, "kpt_oks_sigmas"
-            ), "pycocotools is too old!"
+            assert hasattr(coco_eval.params, "kpt_oks_sigmas"), "pycocotools is too old!"
             coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
         # COCOAPI requires every detection and every gt to have keypoints, so
         # we just take the first entry from both
@@ -727,7 +701,9 @@ def _evaluate_predictions_on_coco(
             "http://cocodataset.org/#keypoints-eval."
         )
 
-    coco_eval.params.maxDets = max_dets_per_image  # by default it is [1,10,100], our datasets have more than 100 instances
+    coco_eval.params.maxDets = (
+        max_dets_per_image  # by default it is [1,10,100], our datasets have more than 100 instances
+    )
     coco_eval.params.areaRng = areaRng
     coco_eval.evaluate_custom()
     coco_eval.accumulate_custom()
@@ -761,18 +737,13 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
 
     # unmap the category mapping ids for COCO
     if hasattr(metadata, "thing_dataset_id_to_contiguous_id"):
-        reverse_id_mapping = {
-            v: k for k, v in metadata.thing_dataset_id_to_contiguous_id.items()
-        }
-        reverse_id_mapper = lambda contiguous_id: reverse_id_mapping[
-            contiguous_id
-        ]  # noqa
+        reverse_id_mapping = {v: k for k, v in metadata.thing_dataset_id_to_contiguous_id.items()}
+        reverse_id_mapper = lambda contiguous_id: reverse_id_mapping[contiguous_id]  # noqa
     else:
         reverse_id_mapper = lambda contiguous_id: contiguous_id  # noqa
 
     categories = [
-        {"id": reverse_id_mapper(id), "name": name}
-        for id, name in enumerate(metadata.thing_classes)
+        {"id": reverse_id_mapper(id), "name": name} for id, name in enumerate(metadata.thing_classes)
     ]
 
     logger.info("Converting dataset dicts into COCO format")
@@ -797,9 +768,7 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
             bbox = annotation["bbox"]
             if isinstance(bbox, np.ndarray):
                 if bbox.ndim != 1:
-                    raise ValueError(
-                        f"bbox has to be 1-dimensional. Got shape={bbox.shape}."
-                    )
+                    raise ValueError(f"bbox has to be 1-dimensional. Got shape={bbox.shape}.")
                 bbox = bbox.tolist()
             if len(bbox) not in [4, 5]:
                 raise ValueError(f"bbox has to has length 4 or 5. Got {bbox}.")
@@ -854,20 +823,15 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
             if mind != len(mbins) - 1 and mind != -1:
                 coco_annotation["ignore"] = (
                     0
-                    if annotation.get("imag") > mbins[mind]
-                    and annotation.get("imag") <= mbins[mind + 1]
+                    if annotation.get("imag") > mbins[mind] and annotation.get("imag") <= mbins[mind + 1]
                     else 1
                 )
             elif mind == len(mbins) - 1:
-                coco_annotation["ignore"] = (
-                    0 if annotation.get("imag") > mbins[mind] else 1
-                )
+                coco_annotation["ignore"] = 0 if annotation.get("imag") > mbins[mind] else 1
             else:
                 coco_annotation["ignore"] = int(annotation.get("ignore", 0))
 
-            coco_annotation["category_id"] = int(
-                reverse_id_mapper(annotation["category_id"])
-            )
+            coco_annotation["category_id"] = int(reverse_id_mapper(annotation["category_id"]))
 
             # Add optional fields
             if "keypoints" in annotation:
@@ -884,10 +848,7 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
 
             coco_annotations.append(coco_annotation)
 
-    logger.info(
-        "Conversion finished, "
-        f"#images: {len(coco_images)}, #annotations: {len(coco_annotations)}"
-    )
+    logger.info("Conversion finished, " f"#images: {len(coco_images)}, #annotations: {len(coco_annotations)}")
 
     info = {
         "date_created": str(datetime.datetime.now()),
@@ -904,9 +865,7 @@ def convert_to_coco_dict(dataset_name, mbins, mind, logger):
     return coco_dict
 
 
-def convert_to_coco_json(
-    dataset_name, output_file, mbins=[0, 1], mind=-1, allow_cached=True
-):
+def convert_to_coco_json(dataset_name, output_file, mbins=[0, 1], mind=-1, allow_cached=True):
     """
     Converts dataset into COCO format and saves it to a json file.
     dataset_name must be registered in DatasetCatalog and in detectron2's standard format.
@@ -928,9 +887,7 @@ def convert_to_coco_json(
                 "You need to clear the cache file if your dataset has been modified."
             )
         else:
-            logger.info(
-                f"Converting annotations of dataset '{dataset_name}' to COCO format ...)"
-            )
+            logger.info(f"Converting annotations of dataset '{dataset_name}' to COCO format ...)")
             coco_dict = convert_to_coco_dict(dataset_name, mbins, mind, logger)
 
             logger.info(f"Caching COCO format annotations at '{output_file}' ...")
@@ -1010,9 +967,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
         self._output_dir = output_dir
 
         if use_fast_impl and (COCOeval_opt is COCOeval):
-            self._logger.info(
-                "Fast COCO eval is not built. Falling back to official COCO eval."
-            )
+            self._logger.info("Fast COCO eval is not built. Falling back to official COCO eval.")
             use_fast_impl = False
         self._use_fast_impl = use_fast_impl
 
@@ -1037,9 +992,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
         self._areaRng = areaRng
 
         if tasks is not None and isinstance(tasks, CfgNode):
-            kpt_oks_sigmas = (
-                tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
-            )
+            kpt_oks_sigmas = tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
             self._logger.warn(
                 "COCO Evaluator instantiated using config, this is deprecated behavior."
                 " Please pass in explicit arguments instead."
@@ -1054,16 +1007,13 @@ class COCOEvaluatorRecall(COCOEvaluator):
         if not hasattr(self._metadata, "json_file"):
             if output_dir is None:
                 raise ValueError(
-                    "output_dir must be provided to COCOEvaluator "
-                    "for datasets not in COCO format."
+                    "output_dir must be provided to COCOEvaluator " "for datasets not in COCO format."
                 )
             self._logger.info(f"Trying to convert '{dataset_name}' to COCO format ...")
 
             cache_path = os.path.join(output_dir, f"{dataset_name}_coco_format.json")
             self._metadata.json_file = cache_path
-            convert_to_coco_json(
-                dataset_name, cache_path, allow_cached=allow_cached_coco
-            )
+            convert_to_coco_json(dataset_name, cache_path, allow_cached=allow_cached_coco)
         json_file = PathManager.get_local_path(self._metadata.json_file)
         print("Loading ", json_file)
         with contextlib.redirect_stdout(io.StringIO()):
@@ -1085,15 +1035,10 @@ class COCOEvaluatorRecall(COCOEvaluator):
 
         # unmap the category ids for COCO
         if hasattr(self._metadata, "thing_dataset_id_to_contiguous_id"):
-            dataset_id_to_contiguous_id = (
-                self._metadata.thing_dataset_id_to_contiguous_id
-            )
+            dataset_id_to_contiguous_id = self._metadata.thing_dataset_id_to_contiguous_id
             all_contiguous_ids = list(dataset_id_to_contiguous_id.values())
             num_classes = len(all_contiguous_ids)
-            assert (
-                min(all_contiguous_ids) == 0
-                and max(all_contiguous_ids) == num_classes - 1
-            )
+            assert min(all_contiguous_ids) == 0 and max(all_contiguous_ids) == num_classes - 1
 
             reverse_id_mapping = {v: k for k, v in dataset_id_to_contiguous_id.items()}
             for result in coco_results:
@@ -1144,9 +1089,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
 
             self.coco_eval_list.append(coco_eval)
 
-            res = self._derive_coco_results(
-                coco_eval, task, class_names=self._metadata.get("thing_classes")
-            )
+            res = self._derive_coco_results(coco_eval, task, class_names=self._metadata.get("thing_classes"))
             self._results[task] = res
 
     def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
@@ -1174,15 +1117,10 @@ class COCOEvaluatorRecall(COCOEvaluator):
         # the standard metrics
         print(type(coco_eval))
         results = {
-            metric: float(
-                coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan"
-            )
+            metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
             for idx, metric in enumerate(metrics)
         }
-        self._logger.info(
-            "Evaluation results for {}: \n".format(iou_type)
-            + create_small_table(results)
-        )
+        self._logger.info("Evaluation results for {}: \n".format(iou_type) + create_small_table(results))
         if not np.isfinite(sum(results.values())):
             self._logger.info("Some metrics cannot be computed and is shown as NaN.")
 
@@ -1208,9 +1146,7 @@ class COCOEvaluatorRecall(COCOEvaluator):
         # tabulate it
         N_COLS = min(6, len(results_per_category) * 2)
         results_flatten = list(itertools.chain(*results_per_category))
-        results_2d = itertools.zip_longest(
-            *[results_flatten[i::N_COLS] for i in range(N_COLS)]
-        )
+        results_2d = itertools.zip_longest(*[results_flatten[i::N_COLS] for i in range(N_COLS)])
         table = tabulate(
             results_2d,
             tablefmt="pipe",
@@ -1767,9 +1703,7 @@ class train_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(
-                annotation, [transform], image.shape[1:]
-            )
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
         ]
         return {
@@ -1833,9 +1767,7 @@ class test_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(
-                annotation, [transform], image.shape[1:]
-            )
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
         ]
         return {

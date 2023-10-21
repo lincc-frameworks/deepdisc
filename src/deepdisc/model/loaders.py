@@ -69,9 +69,7 @@ class train_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(
-                annotation, [transform], image.shape[1:]
-            )
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
         ]
 
@@ -147,9 +145,7 @@ class test_mapper_cls:
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
         annos = [
-            utils.transform_instance_annotations(
-                annotation, [transform], image.shape[1:]
-            )
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
         ]
 
@@ -201,7 +197,5 @@ def return_test_loader(cfg_loader, **kwargs):
         a test loader
     """
     _test_mapper = test_mapper_cls(**kwargs)
-    test_loader = data.build_detection_test_loader(
-        cfg_loader, cfg_loader.DATASETS.TEST, mapper=_test_mapper
-    )
+    test_loader = data.build_detection_test_loader(cfg_loader, cfg_loader.DATASETS.TEST, mapper=_test_mapper)
     return test_loader

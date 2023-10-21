@@ -61,3 +61,11 @@ testpaths = [
 
 [tool.coverage.run]
 omit=["src/deepdisc/_version.py"]
+
+[tool.black]
+line-length = 110
+target-version = ["py38"]
+
+[tool.isort]
+profile = "black"
+line_length = 110

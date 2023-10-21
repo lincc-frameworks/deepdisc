@@ -111,7 +111,9 @@ def main(train_head, args):
     alphas = args.alphas
     modname = args.modname
     if modname == "swin":
-        cfgfile = "/home/shared/hsc/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_swin_b_in21k_50ep.py"
+        cfgfile = (
+            "/home/shared/hsc/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_swin_b_in21k_50ep.py"
+        )
         initwfile = "/home/shared/hsc/detectron2/projects/ViTDet/model_final_246a82.pkl"
     elif modname == "mvitv2":
         cfgfile = "/home/shared/hsc/detectron2/projects/ViTDet/configs/COCO/cascade_mask_rcnn_mvitv2_b_in21k_100ep.py"
@@ -136,15 +138,11 @@ def main(train_head, args):
 
     DatasetCatalog.register("astro_train", lambda: get_data_from_json(trainfile))
     MetadataCatalog.get("astro_train").set(thing_classes=classes)
-    astrotrain_metadata = MetadataCatalog.get(
-        "astro_train"
-    )  # astro_test dataset needs to exist
+    astrotrain_metadata = MetadataCatalog.get("astro_train")  # astro_test dataset needs to exist
 
     DatasetCatalog.register("astro_val", lambda: get_data_from_json(testfile))
     MetadataCatalog.get("astro_val").set(thing_classes=classes)
-    astroval_metadata = MetadataCatalog.get(
-        "astro_val"
-    )  # astro_test dataset needs to exist
+    astroval_metadata = MetadataCatalog.get("astro_val")  # astro_test dataset needs to exist
 
     cfg = LazyConfig.load(cfgfile)
 
@@ -232,9 +230,7 @@ def main(train_head, args):
         schedulerHook = return_schedulerhook(optimizer)
         hookList = [lossHook, schedulerHook, saveHook]
 
-        trainer = return_lazy_trainer(
-            model, loader, optimizer, cfg, cfg_loader, hookList
-        )
+        trainer = return_lazy_trainer(model, loader, optimizer, cfg, cfg_loader, hookList)
 
         trainer.set_period(5)
         trainer.train(0, 20)
@@ -266,45 +262,31 @@ Run on multiple machines:
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "--config-file", default="", metavar="FILE", help="path to config file"
-    )
+    parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",
         help="Whether to attempt to resume from the checkpoint directory. "
         "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
     )
-    parser.add_argument(
-        "--eval-only", action="store_true", help="perform evaluation only"
-    )
-    parser.add_argument(
-        "--num-gpus", type=int, default=1, help="number of gpus *per machine*"
-    )
-    parser.add_argument(
-        "--num-machines", type=int, default=1, help="total number of machines"
-    )
-    parser.add_argument(
-        "--run-name", type=str, default="Swin_test", help="output name for run"
-    )
+    parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
+    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
+    parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
+    parser.add_argument("--run-name", type=str, default="Swin_test", help="output name for run")
     parser.add_argument(
         "--cfgfile",
         type=str,
         default="COCO-InstanceSegmentation/mask_rcnn_R_50_C4_3x.yaml",
         help="path to model config file",
     )
-    parser.add_argument(
-        "--norm", type=str, default="astrolupton", help="contrast scaling"
-    )
+    parser.add_argument("--norm", type=str, default="astrolupton", help="contrast scaling")
     parser.add_argument(
         "--data-dir",
         type=str,
         default="/home/shared/hsc/HSC/HSC_DR3/data/",
         help="directory with data",
     )
-    parser.add_argument(
-        "--output-dir", type=str, default="./", help="output directory to save model"
-    )
+    parser.add_argument("--output-dir", type=str, default="./", help="output directory to save model")
     parser.add_argument(
         "--machine-rank",
         type=int,
@@ -318,9 +300,7 @@ Run on multiple machines:
         help="ceiling percentile for saturation cutoff",
     )
     parser.add_argument("--scheme", type=int, default=1, help="classification scheme")
-    parser.add_argument(
-        "--alphas", type=float, nargs="*", help="weights for focal loss"
-    )
+    parser.add_argument("--alphas", type=float, nargs="*", help="weights for focal loss")
     parser.add_argument("--modname", type=str, default="swin", help="")
     parser.add_argument("--stretch", type=float, default=0.5, help="lupton stretch")
     parser.add_argument("--Q", type=float, default=10, help="lupton Q")
@@ -336,11 +316,7 @@ Run on multiple machines:
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
     # so that users are aware of orphan processes by seeing the port occupied.
-    port = (
-        2**15
-        + 2**14
-        + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
-    )
+    port = 2**15 + 2**14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
     parser.add_argument(
         "--dist-url",
         default="tcp://127.0.0.1:{}".format(port),

@@ -126,9 +126,7 @@ class SaveHook(HookBase):
 
     def after_train(self):
         print("saving", self.output_name)
-        self.trainer.checkpointer.save(
-            self.output_name
-        )  # Note: Set the name of the output model here
+        self.trainer.checkpointer.save(self.output_name)  # Note: Set the name of the output model here
 
 
 #
@@ -172,12 +170,8 @@ class LossEvalHook(HookBase):
                 iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
                 seconds_per_img = total_compute_time / iters_after_start
                 if idx >= num_warmup * 2 or seconds_per_img > 5:
-                    total_seconds_per_img = (
-                        time.perf_counter() - start_time
-                    ) / iters_after_start
-                    eta = datetime.timedelta(
-                        seconds=int(total_seconds_per_img * (total - idx - 1))
-                    )
+                    total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
+                    eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
                     log_every_n_seconds(
                         logging.INFO,
                         "Loss on Validation  done {}/{}. {:.4f} s / img. ETA={}".format(
@@ -208,9 +202,7 @@ class LossEvalHook(HookBase):
     def after_step(self):
         next_iter = self.trainer.iter + 1
         is_final = next_iter == self.trainer.max_iter
-        if is_final or (
-            self._period > 0 and next_iter % self._period == 0
-        ):  # or (next_iter == 1):
+        if is_final or (self._period > 0 and next_iter % self._period == 0):  # or (next_iter == 1):
             self._do_loss_eval()
         self.trainer.storage.put_scalars(timetest=12)
 
@@ -377,9 +369,7 @@ class KRandomAugmentationList(Augmentation):
         super().__init__()
         self.max_range = len(augs)
         self.k = k
-        self.augs = (
-            augs  # set augs to use as fixed if we have to use same augs everytime
-        )
+        self.augs = augs  # set augs to use as fixed if we have to use same augs everytime
         self.cropaug = cropaug
 
     def _setup_augs(self, augs, k: int):
@@ -408,9 +398,7 @@ class KRandomAugmentationList(Augmentation):
     def __call__(self, aug_input) -> Transform:
         tfms = []
 
-        for x in self._setup_augs(
-            self.augs, self.k
-        ):  # generate auguments to use randomly on the fly
+        for x in self._setup_augs(self.augs, self.k):  # generate auguments to use randomly on the fly
             # print(x)
             tfm = x(aug_input)
             tfms.append(tfm)
@@ -509,9 +497,7 @@ class RedshiftCasROIHeads(CascadeROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [
-                x.proposal_boxes if self.training else x.pred_boxes for x in instances
-            ]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
@@ -526,9 +512,7 @@ class RedshiftCasROIHeads(CascadeROIHeads):
             # print('gt_classes')
             # print(gt_classes)
             # print('fg_inds')
-            fg_inds = nonzero_tuple(
-                (gt_classes >= 0) & (gt_classes < self.num_classes)
-            )[0]
+            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
 
@@ -609,9 +593,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def output_pdf(self, inputs):
         pdf = Independent(
             MixtureSameFamily(
-                mixture_distribution=Categorical(
-                    logits=inputs[..., : self.num_components]
-                ),
+                mixture_distribution=Categorical(logits=inputs[..., : self.num_components]),
                 component_distribution=Normal(
                     inputs[..., self.num_components : 2 * self.num_components],
                     F.softplus(inputs[..., 2 * self.num_components :]),
@@ -624,9 +606,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [
-                x.proposal_boxes if self.training else x.pred_boxes for x in instances
-            ]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
@@ -639,9 +619,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
 
         if self.training:
             gt_classes = cat([x.gt_classes for x in instances])
-            fg_inds = nonzero_tuple(
-                (gt_classes >= 0) & (gt_classes < self.num_classes)
-            )[0]
+            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
             pdfs_fg = self.output_pdf(fcs[fg_inds, ...])
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
@@ -709,9 +687,7 @@ class ConvRedshiftROIHeads(StandardROIHeads):
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
-            boxes = [
-                x.proposal_boxes if self.training else x.pred_boxes for x in instances
-            ]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
