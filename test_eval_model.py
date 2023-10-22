@@ -41,9 +41,9 @@ from detectron2.utils.visualizer import Visualizer
 from iopath.common.file_io import file_lock
 from PIL import Image, ImageEnhance
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
-from astrodet.detectron import plot_stretch_Q
+import deepdisc.astrodet.astrodet as toolkit
+import deepdisc.astrodet.detectron as detectron_addons
+
 
 logger = logging.getLogger(__name__)
 import argparse

@@ -1,4 +1,4 @@
-from astrodet import astrodet as toolkit
+import deepdisc.astrodet.astrodet as toolkit
 
 def return_predictor_transformer(cfg, cfg_loader):
 

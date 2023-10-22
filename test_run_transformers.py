@@ -53,13 +53,8 @@ from detectron2.engine import (DefaultPredictor, DefaultTrainer, HookBase,
                                default_setup, hooks, launch)
 from detectron2.utils.visualizer import Visualizer
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
-# Prettify the plotting
-from astrodet.astrodet import set_mpl_style
-
-set_mpl_style()
-
+#from astrodet import astrodet as toolkit
+#from astrodet import detectron as detectron_addons
 
 import glob
 
@@ -70,7 +65,11 @@ from detectron2.engine.defaults import create_ddp_model
 from detectron2.solver import build_lr_scheduler
 from detectron2.structures import BoxMode
 
-from astrodet.detectron import _transform_to_aug
+
+import deepdisc.astrodet.astrodet as toolkit
+import deepdisc.astrodet.detectron as detectron_addons
+
+
 from deepdisc.data_format.file_io import get_data_from_json
 from deepdisc.model.loaders import return_test_loader, return_train_loader
 from deepdisc.model.models import return_lazy_model

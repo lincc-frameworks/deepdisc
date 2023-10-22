@@ -3,7 +3,7 @@ import torch
 from detectron2 import structures
 from detectron2.structures import BoxMode
 
-from astrodet import astrodet as toolkit
+import deepdisc.astrodet.astrodet as toolkit
 from deepdisc.inference.predictors import get_predictions
 
 

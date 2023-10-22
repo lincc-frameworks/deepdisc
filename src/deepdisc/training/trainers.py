@@ -1,7 +1,7 @@
 from deepdisc.model import models
 from deepdisc.model import loaders
-from astrodet.astrodet import LazyAstroTrainer
-from astrodet import detectron as detectron_addons
+from deepdisc.astrodet.astrodet import LazyAstroTrainer
+from deepdisc.astrodet import detectron as detectron_addons
 from detectron2.config import instantiate
 
 

@@ -109,7 +109,7 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import create_small_table
 import imgaug.augmenters as iaa
 import imgaug.augmenters.flip as flip
-from . import detectron as detectron_addons
+import deepdisc.astrodet.detectron as detectron_addons
 
 
 from detectron2.structures import BoxMode

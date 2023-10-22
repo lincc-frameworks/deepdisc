@@ -1,8 +1,8 @@
 import detectron2.data as data
 import copy
 import numpy as np
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
+import deepdisc.astrodet.astrodet as toolkit
+import deepdisc.astrodet.detectron as detectron_addons
 import detectron2.data.transforms as T
 from detectron2.data import detection_utils as utils
 import torch
