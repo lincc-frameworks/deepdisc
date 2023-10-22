@@ -1,13 +1,11 @@
-import detectron2.data as data
 import copy
 import numpy as np
-import deepdisc.astrodet.astrodet as toolkit
-import deepdisc.astrodet.detectron as detectron_addons
+from detectron2 import data
 import detectron2.data.transforms as T
 from detectron2.data import detection_utils as utils
 import torch
-import detectron2.data as data
-
+import deepdisc.astrodet.astrodet as toolkit
+import deepdisc.astrodet.detectron as detectron_addons
 
 class train_mapper_cls:
     def __init__(self,**read_image_args):
@@ -32,7 +30,6 @@ class train_mapper_cls:
             image = toolkit.read_image_hsc(filenames, normalize = norm,
             ceil_percentile = self.ria['ceil_percentile'], dtype=dtype,
             A=self.ria['A'],stretch=self.ria['stretch'],Q=self.ria['Q'],do_norm=self.ria['do_norm'])
-
         
         augs = detectron_addons.KRandomAugmentationList([
             # my custom augs
@@ -43,7 +40,6 @@ class train_mapper_cls:
             k=-1,
             cropaug=T.RandomCrop('relative',(0.5,0.5))
         )
-        
         # Data Augmentation
         auginput = T.AugInput(image)
         # Transformations to model shapes
@@ -96,9 +92,6 @@ class test_mapper_cls:
         augs = T.AugmentationList([
         T.CropTransform(image.shape[1]//4,image.shape[0]//4,image.shape[1]//2,image.shape[0]//2)
         ])
-
-
-        
         # Data Augmentation
         auginput = T.AugInput(image)
         # Transformations to model shapes
@@ -108,7 +101,6 @@ class test_mapper_cls:
             utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
         ]
-
 
         instances = utils.annotations_to_instances(annos, image.shape[1:])
         instances = utils.filter_empty_instances(instances)
@@ -162,3 +154,4 @@ def return_test_loader(cfg_loader,**kwargs):
     _test_mapper = test_mapper_cls(**kwargs)
     test_loader = data.build_detection_test_loader(cfg_loader,cfg_loader.DATASETS.TEST,mapper=_test_mapper)
     return test_loader
+

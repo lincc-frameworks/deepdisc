@@ -1,10 +1,6 @@
-from deepdisc.model import models
-from deepdisc.model import loaders
+from detectron2.config import instantiate
 from deepdisc.astrodet.astrodet import LazyAstroTrainer
 from deepdisc.astrodet import detectron as detectron_addons
-from detectron2.config import instantiate
-
-
 
 def return_lazy_trainer(model,loader,optimizer,cfg,cfg_loader,hooklist):
     """Return a trainer for models built on LazyConfigs
@@ -100,3 +96,4 @@ def return_optimizer(cfg):
     """
     optimizer = instantiate(cfg.optimizer)
     return optimizer
+

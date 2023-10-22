@@ -2,10 +2,8 @@ import numpy as np
 import torch
 from detectron2 import structures
 from detectron2.structures import BoxMode
-
 import deepdisc.astrodet.astrodet as toolkit
 from deepdisc.inference.predictors import get_predictions
-
 
 def get_matched_object_inds(dataset_dict,outputs):
     """Returns indices for matched pairs of ground truth and detected objects in an image
@@ -35,7 +33,6 @@ def get_matched_object_inds(dataset_dict,outputs):
     pred_boxes = pred_boxes.to('cpu')
 
     IOUs = structures.pairwise_iou(pred_boxes, gt_boxes).numpy()
-
     #matched_gts holds the indices of the ground truth annotations that correspond to the matched detections
     #matched_dts holds the indices of the detections that corresponds to the ground truth annotations
     matched_gts = []
@@ -47,7 +44,6 @@ def get_matched_object_inds(dataset_dict,outputs):
             matched_dts.append(i) 
 
     return matched_gts, matched_dts
-
 
 def get_matched_object_classes(dataset_dicts,predictor, **kwargs):
 
@@ -66,5 +62,5 @@ def get_matched_object_classes(dataset_dicts,predictor, **kwargs):
         true_classes.append(true_class)
         pred_classes.append(pred_class)
     
-
     return true_classes, pred_classes
+

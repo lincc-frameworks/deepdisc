@@ -1858,3 +1858,4 @@ def get_astro_dicts(img_dir):
         dataset_dicts.append(record)
 
     return dataset_dicts
+

@@ -1,4 +1,3 @@
-
 from detectron2.config import instantiate
 from detectron2.engine.defaults import create_ddp_model
 
@@ -21,3 +20,4 @@ def return_lazy_model(cfg):
     model = create_ddp_model(model, **cfg.train.ddp)
 
     return model
+
