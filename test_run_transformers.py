@@ -74,7 +74,7 @@ from astrodet.detectron import _transform_to_aug
 from deepdisc.data_format.file_io import get_data_from_json
 from deepdisc.model.loaders import return_test_loader, return_train_loader
 from deepdisc.model.models import return_lazy_model
-from deepdisc.model.trainers import (return_evallosshook, return_lazy_trainer,
+from deepdisc.training.trainers import (return_evallosshook, return_lazy_trainer,
                                      return_optimizer, return_savehook,
                                      return_schedulerhook)
 
