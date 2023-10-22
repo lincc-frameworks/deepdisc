@@ -11,7 +11,6 @@ except:
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=UserWarning)
 
-
 # Some basic setup:
 # Setup detectron2 logger
 import detectron2
