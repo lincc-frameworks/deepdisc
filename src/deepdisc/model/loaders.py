@@ -11,15 +11,12 @@ import deepdisc.astrodet.detectron as detectron_addons
 
 
 class train_mapper_cls:
-    def __init__(self, imreader, key_mapper):
+    def __init__(self, imreader):
         self.IR = imreader
-        self.km = key_mapper
 
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)
-        key = self.km(dataset_dict)
-
-        image = self.IR(key)
+        image = self.IR.read(dataset_dict)
 
         augs = detectron_addons.KRandomAugmentationList(
             [
@@ -56,15 +53,12 @@ class train_mapper_cls:
 
 
 class redshift_train_mapper_cls:
-    def __init__(self, imreader, key_mapper):
+    def __init__(self, imreader):
         self.IR = imreader
-        self.km = key_mapper
 
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)
-        key = self.km(dataset_dict)
-
-        image = self.IR(key)
+        image = self.IR.read(dataset_dict)
 
         augs = detectron_addons.KRandomAugmentationList(
             [
@@ -124,15 +118,12 @@ def return_train_loader(cfg_loader, mapper):
 
 
 class test_mapper_cls:
-    def __init__(self, imreader, key_mapper):
+    def __init__(self, imreader):
         self.IR = imreader
-        self.km = key_mapper
 
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)
-        key = self.km(dataset_dict)
-
-        image = self.IR(key)
+        image = self.IR.read(dataset_dict)
 
         augs = T.AugmentationList(
             [
@@ -169,15 +160,12 @@ class test_mapper_cls:
 
 
 class redshift_test_mapper_cls:
-    def __init__(self, imreader, key_mapper):
+    def __init__(self, imreader):
         self.IR = imreader
-        self.km = key_mapper
 
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)
-        key = self.km(dataset_dict)
-
-        image = self.IR(key)
+        image = self.IR.read(dataset_dict)
 
         augs = T.AugmentationList([])
         # Data Augmentation

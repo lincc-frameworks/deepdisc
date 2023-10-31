@@ -20,9 +20,6 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 
-# from astrodet import astrodet as toolkit
-# from astrodet import detectron as detectron_addons
-
 import deepdisc.astrodet.astrodet as toolkit
 
 logger = logging.getLogger(__name__)
@@ -199,19 +196,15 @@ if bb in ["Swin", "MViTv2"]:
 else:
     predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
-def dc2_key_mapper(dataset_dict):
-    filename = dataset_dict["filename"]
-    return filename
 
 IR = DC2ImageReader(norm=args.norm)
-
 
 t0 = time.time()
 
 
 print("Matching objects")
-true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, dc2_key_mapper, predictor)
-true_zs, pred_pdfs = get_matched_z_pdfs(dataset_dicts["test"], IR, dc2_key_mapper, predictor)
+true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, predictor)
+true_zs, pred_pdfs = get_matched_z_pdfs(dataset_dicts["test"], IR, predictor)
 
 print(true_zs, pred_pdfs)
 

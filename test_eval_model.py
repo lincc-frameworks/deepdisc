@@ -188,16 +188,6 @@ if bb in ['Swin','MViTv2']:
 else:
     predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
-
-def hsc_key_mapper(dataset_dict):
-    filenames = [
-        dataset_dict["filename_G"],
-        dataset_dict["filename_R"],
-        dataset_dict["filename_I"],
-    ]
-    return filenames
-
-
 IR = HSCImageReader(norm=args.norm)
 
 
@@ -205,7 +195,7 @@ t0 = time.time()
 
 
 print("Matching objects")
-true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, hsc_key_mapper, predictor)
+true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, predictor)
 classes = np.array([true_classes, pred_classes])
 
 savename = f"{bb}_test_matched_classes.npy"

@@ -8,9 +8,9 @@ from astropy.visualization import make_lupton_rgb
 class ImageReader(abc.ABC):
     """Base class that will read images on the fly for the training/testing dataloaders
 
-    To implement an image reader for a new class, the derived class needs to have an
-    __init__() function that calls super().__init__(*args, **kwargs)
-    and a custom version of _read_image().
+    To implement an image reader for a new class, the derived class needs to have:
+        an __init__() function that calls super().__init__(*args, **kwargs), and
+        a custom version of _read_image().
     """
 
     def __init__(self, norm="raw", *args, **kwargs):
@@ -27,13 +27,15 @@ class ImageReader(abc.ABC):
         self.scalekwargs = kwargs
 
     @abc.abstractmethod
-    def _read_image(self, key):
+    def _read_image(self, input_ptr):
         """Read the image. No-op implementation.
 
         Parameters
         ----------
-        key : str or int
-            The key indicating the image to read.
+        input_ptr : multiple (string, dict, etc.)
+            The pointer to where the image lives. This could be a dictionary of
+            configuration parameters or another data structure from which
+            the subclass can locate the image.
 
         Returns
         -------
@@ -41,21 +43,28 @@ class ImageReader(abc.ABC):
             The image.
         """
         pass
-        
-    def __call__(self, key):
+
+    def read(self, input_ptr):
         """Read the image and apply scaling.
 
         Parameters
         ----------
-        key : str or int
-            The key indicating the image to read.
+        input_ptr : any (string, numpy array, dict, etc.)
+            The pointer to where the image lives. This could be a dictionary of
+            configuration parameters, the numpy array containing the image,
+            or another data structure from which the subclass can locate the image.
 
         Returns
         -------
         im : numpy array
             The image.
         """
-        im = self._read_image(key)
+        if type(input_ptr) is np.ndarray:
+            im = input_ptr
+        else:
+            im = self._read_image(input_ptr)
+
+        # Perform the image scaling.
         im_scale = self.scaling(im, **self.scalekwargs)
         return im_scale
 
@@ -153,19 +162,27 @@ class DC2ImageReader(ImageReader):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
 
-    def _read_image(self, filename):
+    def _read_image(self, input_ptr):
         """Read the image.
 
         Parameters
         ----------
-        filename : str
-            The filename indicating the image to read.
+        input_ptr : string or dict
+            A string with the file name or a dictionary from which
+            we can lookup the file name.
 
         Returns
         -------
         im : numpy array
             The image.
         """
+        if type(input_ptr) is str:
+            filename = input_ptr
+        elif type(input_ptr) is dict:
+            filename = input_ptr["filename"]
+        else:
+            raise TypeError(f"Unrecognized type for input_ptr: {type(input_ptr)}")
+
         file = filename.split("/")[-1].split(".")[0]
         base = os.path.dirname(filename)
         fn = os.path.join(base, file) + ".npy"
@@ -181,21 +198,30 @@ class HSCImageReader(ImageReader):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
 
-    def _read_image(self, filenames):
+    def _read_image(self, input_ptr):
         """Read the image.
 
         Parameters
         ----------
-        filenames : list
-            A length 3 list of filenames for the I, R, and G images.
+        input_ptr : string or dict
+            A list of the three file names (for the I, R, and G images)
+            or a dictionary from which we can lookup the file names.
 
         Returns
         -------
         im : numpy array
             The image.
         """
-        if len(filenames) != 3:
-            raise ValueError("Incorrect number of filenames passed.")
+        if type(input_ptr) is list:
+            filenames = input_ptr
+        elif type(input_ptr) is dict:
+            filenames = [
+                input_ptr["filename_G"],
+                input_ptr["filename_R"],
+                input_ptr["filename_I"],
+            ]
+        else:
+            raise TypeError(f"Unrecognized type for input_ptr: {type(input_ptr)}")
 
         g = fits.getdata(os.path.join(filenames[0]), memmap=False)
         length, width = g.shape
