@@ -198,21 +198,12 @@ if bb in ["Swin", "MViTv2"]:
 else:
     predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
-
-def dc2_key_mapper(dataset_dict):
-    filename = dataset_dict["filename"]
-    return filename
-
-
 IR = DC2ImageReader(norm=args.norm)
-
 
 t0 = time.time()
 
-
 print("Matching objects")
-true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, dc2_key_mapper, predictor)
-# true_zs, pred_pdfs = get_matched_z_pdfs(dataset_dicts['test'], IR, dc2_key_mapper, predictor)
+true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, predictor)
 
 classes = np.array([true_classes, pred_classes])
 

@@ -52,13 +52,6 @@ from deepdisc.training.trainers import (
 )
 from deepdisc.utils.parse_arguments import make_training_arg_parser
 
-# from astrodet import astrodet as toolkit
-# from astrodet import detectron as detectron_addons
-
-
-
-
-
 
 def main(train_head, args):
     # Hack if you get SSL certificate error
@@ -165,14 +158,10 @@ def main(train_head, args):
 
         optimizer = return_optimizer(cfg)
 
-        def dc2_key_mapper(dataset_dict):
-            filename = dataset_dict["filename"]
-            return filename
-
         IR = DC2ImageReader(norm=args.norm)
-        mapper = redshift_train_mapper_cls(IR, dc2_key_mapper)
+        mapper = redshift_train_mapper_cls(IR)
         loader = return_train_loader(cfg_loader, mapper)
-        test_mapper = redshift_test_mapper_cls(IR, dc2_key_mapper)
+        test_mapper = redshift_test_mapper_cls(IR)
         test_loader = return_test_loader(cfg_loader, test_mapper)
 
         saveHook = return_savehook(output_name)

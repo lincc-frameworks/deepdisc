@@ -144,19 +144,10 @@ def main(train_head, args):
 
         optimizer = return_optimizer(cfg)
 
-        #key_mapper function should take a dataset_dict as input and output a key used by the image_reader function
-        def hsc_key_mapper(dataset_dict):
-            filenames = [
-                dataset_dict["filename_G"],
-                dataset_dict["filename_R"],
-                dataset_dict["filename_I"],
-            ]
-            return filenames
-
         IR = HSCImageReader(norm=args.norm)
-        mapper = train_mapper_cls(IR, hsc_key_mapper)
+        mapper = train_mapper_cls(IR)
         loader = return_train_loader(cfg_loader, mapper)
-        test_mapper = test_mapper_cls(IR, hsc_key_mapper)
+        test_mapper = test_mapper_cls(IR)
         test_loader = return_test_loader(cfg_loader, test_mapper)
 
         saveHook = return_savehook(output_name)
