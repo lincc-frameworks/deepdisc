@@ -198,6 +198,46 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor):
     return ztrues, zpreds
 
 
+
+
+def get_matched_z_points_new(dataset_dicts, predictor):
+    """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
+    assuming the dataset_dicts have the image HxWxC in the 'image_shaped' field
+
+    Parameters
+    ----------
+    dataset_dicts : list[dict]
+        The dictionary metadata for a test images
+    predictor: AstroPredictor
+        The predictor object used to make predictions on the test set
+
+    Returns
+    -------
+        z_trues: list(float)
+            The redshifts of matched objects in the ground truth list
+        z_preds: list(array(float))
+            The redshift pdfs of matched objects in the detections list
+    """
+    IOUthresh = 0.5
+    zs = np.linspace(-1, 5.0, 200)
+
+    ztrues = []
+    zpreds = []
+
+    for d in dataset_dicts:
+        outputs = get_predictions_new(d, predictor)
+        matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+
+        for gti, dti in zip(matched_gts, matched_dts):
+            ztrue = d["annotations"][int(gti)]["redshift"]
+            z_pred = outputs["instances"].pred_redshift[int(dti)].cpu().numpy()
+
+            ztrues.append(ztrue)
+            zpreds.append(z_pred)
+
+    return ztrues, zpreds
+
+
 def run_batched_match_class(dataloader, predictor):
     """
     Test function not yet implemented for batch prediction

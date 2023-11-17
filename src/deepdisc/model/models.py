@@ -123,7 +123,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
             gt_redshifts = cat([x.gt_redshift for x in instances])
             nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
+            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds]
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
@@ -220,10 +220,6 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
             nn.Linear(16, 1),
         )
 
-        # for l in self.redshift_fc:
-        #    if type(l) == nn.Linear:
-        #        #nn.init.constant_(l.bias, 0.1)
-        #        nn.init.normal_(l.weight,std=0.01)
 
     def _forward_redshift(self, features, instances):
         if self.redshift_pooler is not None:
@@ -266,14 +262,14 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
         if self.training:
             # Need targets to box head
             losses = self._forward_box(features, proposals, targets)
-            # losses.update(self._forward_mask(features, proposals))
-            # losses.update(self._forward_redshift(features, proposals))
+            losses.update(self._forward_mask(features, proposals))
+            losses.update(self._forward_redshift(features, proposals))
             losses.update(self._forward_keypoint(features, proposals))
             return proposals, losses
         else:
             pred_instances = self._forward_box(features, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            # pred_instances = self._forward_redshift(features, pred_instances)
+            pred_instances = self._forward_redshift(features, pred_instances)
             return pred_instances, {}
 
 
@@ -332,7 +328,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
             nn.ReLU(),
             nn.Linear(64, 16),
             nn.ReLU(),
-            nn.Linear(16, 1),
+            nn.Linear(16, 1)
         )
         # self.redshift_fc = nn.Linear(12, 1)
 
@@ -382,7 +378,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
             # Usually the original proposals used by the box head are used by the mask, keypoint
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
             # predicted by the box head.
-            # losses.update(self._forward_mask(features, proposals))
+            losses.update(self._forward_mask(features, proposals))
             losses.update(self._forward_keypoint(features, proposals))
             losses.update(self._forward_redshift(features, proposals))
             return proposals, losses
@@ -493,7 +489,7 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             gt_redshifts = cat([x.gt_redshift for x in instances])
             nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
+            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds]
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
@@ -547,6 +543,122 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             pred_instances = self._forward_box(features, proposals)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
+            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self._forward_redshift(features, pred_instances)
+            return pred_instances, {}
+
+
+
+
+class OldRedshiftCasROIHeads(CascadeROIHeads):
+    #def __init__(self, cfg, input_shape):      
+    def __init__(
+        self,
+        *,
+        box_in_features: List[str],
+        box_pooler: ROIPooler,
+        box_heads: List[nn.Module],
+        box_predictors: List[nn.Module],
+        proposal_matchers: List[Matcher],
+        **kwargs,
+    ):        
+        
+        
+        super().__init__(
+            box_in_features=box_in_features,
+            box_pooler=box_pooler,
+            box_heads=box_heads,
+            box_predictors=box_predictors,
+            proposal_matchers= proposal_matchers,
+            **kwargs,
+        )
+        
+     
+        #super().__init__(cfg, input_shape, **kwargs)
+        
+        self.redshift_pooler= ROIPooler(
+            output_size=7,
+            scales=tuple(k for k in [0.25, 0.125, 0.0625, 0.03125]),
+            sampling_ratio=0,
+            pooler_type='ROIAlignV2',
+        )
+        #in_channels = [input_shape[f].channels for f in in_features]
+        #in_channels = in_channels[0]
+        in_channels=256
+        inshape = ShapeSpec(channels=in_channels, height=7, width=7)
+        
+        #The input dim should follow from the classification head
+        self._output_size = (inshape.channels, inshape.height, inshape.width)
+        
+        #self.redshift_fc = nn.Linear(int(np.prod(self._output_size)), 1)
+        
+        self.redshift_fc=nn.Sequential(
+          nn.Linear(int(np.prod(self._output_size)), 1024),
+          #nn.BatchNorm1d(1024),
+          nn.ReLU(),
+          nn.Linear(1024, 64),
+          #nn.BatchNorm1d(64),
+          nn.ReLU(),
+          nn.Linear(64,16),
+          nn.ReLU(),
+          nn.Linear(16,1)
+        )
+        
+        #for l in self.redshift_fc:
+        #    if type(l) == nn.Linear:
+        #        #nn.init.constant_(l.bias, 0.1)    
+        #        nn.init.normal_(l.weight,std=0.01)
+
+        
+    def _forward_redshift(self, features, instances):
+        
+        if self.redshift_pooler is not None:
+            features = [features[f] for f in self.box_in_features]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            features = self.redshift_pooler(features, boxes)
+        
+        features = nn.Flatten()(features)
+        
+        prediction = self.redshift_fc(features)[:,0]
+        #prediction = self.redshift_fc(features)
+
+        num_instances_per_img = [len(i) for i in instances]
+        
+        if self.training:
+            gt_classes = cat([x.gt_classes for x in instances])
+            #print('gt_classes')
+            #print(gt_classes)
+            #print('fg_inds')
+            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]          
+            
+            gt_redshifts = cat([x.gt_redshift for x in instances])
+
+            diff = prediction[fg_inds] - gt_redshifts[fg_inds]
+            #$diff = prediction - gt_redshifts
+
+            return{"redshift_loss": torch.square(diff).mean()}
+            #return{"redshift_loss": torch.abs(diff).median()}
+        else:  
+            z_pred = torch.split(prediction, num_instances_per_img, dim=0)
+            for z, pred_instances in zip(z_pred, instances):
+                pred_instances.pred_redshift = z
+            return instances
+
+                           
+    def forward(self, images, features, proposals, targets=None):
+        del images
+        if self.training:
+            proposals = self.label_and_sample_proposals(proposals, targets)
+
+        if self.training:
+            # Need targets to box head
+            losses = self._forward_box(features, proposals, targets)
+            losses.update(self._forward_mask(features, proposals))
+            losses.update(self._forward_redshift(features, proposals))
+            losses.update(self._forward_keypoint(features, proposals))
+            return proposals, losses
+        else:
+            pred_instances = self._forward_box(features, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
             pred_instances = self._forward_redshift(features, pred_instances)
             return pred_instances, {}

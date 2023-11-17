@@ -153,6 +153,7 @@ class DC2ImageReader(ImageReader):
     def __init__(self, *args, **kwargs):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
+        self
 
     def _read_image(self, filename):
         """Read the image.
@@ -168,11 +169,13 @@ class DC2ImageReader(ImageReader):
             The image.
         """
         file = filename.split("/")[-1].split(".")[0]
-        base = os.path.dirname(filename)
+        #base = os.path.dirname(filename)
+        base='/home/g4merz/DC2/nersc_data/scarlet_data'
         fn = os.path.join(base, file) + ".npy"
         image = np.load(fn)
         image = np.transpose(image, axes=(1, 2, 0)).astype(np.float32)
         return image
+    
 
 
 class HSCImageReader(ImageReader):

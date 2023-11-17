@@ -31,12 +31,13 @@ import torch
 # import some common detectron2 utilities
 from detectron2.config import LazyConfig, get_cfg
 from detectron2.engine import launch
+from detectron2.engine.defaults import create_ddp_model
 
 from deepdisc.data_format.augment_image import train_augs
 from deepdisc.data_format.image_readers import DC2ImageReader
 from deepdisc.data_format.register_data import register_data_set
 from deepdisc.model.loaders import RedshiftDictMapper, return_test_loader, return_train_loader
-from deepdisc.model.models import RedshiftPDFCasROIHeads, return_lazy_model
+from deepdisc.model.models import RedshiftPDFCasROIHeads, RedshiftPointCasROIHeads, OldRedshiftCasROIHeads, return_lazy_model
 from deepdisc.training.trainers import (
     return_evallosshook,
     return_lazy_trainer,
@@ -94,7 +95,7 @@ def main(train_head, args):
 
     # metadata = MetadataCatalog.get(cfg.dataloader.test.dataset.names) # to get labels from ids
 
-    bs = 1
+    bs = 2
     cfg.model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
     cfg.dataloader.train.total_batch_size = bs
     cfg.model.roi_heads.num_classes = numclasses
@@ -102,8 +103,10 @@ def main(train_head, args):
     cfg.model.backbone.bottom_up.in_chans = 6
     cfg.model.pixel_mean = [0.05381286, 0.04986344, 0.07526361, 0.10420945, 0.14229655, 0.21245764]
     cfg.model.pixel_std = [2.9318833, 1.8443471, 2.581817, 3.5950038, 4.5809164, 7.302009]
-    cfg.model.roi_heads.num_components = 5
-    cfg.model.roi_heads._target_ = RedshiftPDFCasROIHeads
+    #cfg.model.roi_heads.num_components = 5
+    #cfg.model.roi_heads._target_ = RedshiftPDFCasROIHeads
+    cfg.model.roi_heads._target_ = RedshiftPointCasROIHeads
+    cfg.model.roi_heads.pop('mask_in_features')
 
     cfg_loader = get_cfg()
     cfg_loader.SOLVER.IMS_PER_BATCH = bs
@@ -140,8 +143,11 @@ def main(train_head, args):
         cfg.train.init_checkpoint = None
 
         # Step 1)
-
+        
+        print(cfg.train.ddp)
         model = return_lazy_model(cfg)
+        model.to(cfg.train.device)
+        model = create_ddp_model(model, **cfg.train.ddp)
 
         cfg.optimizer.params.model = model
         cfg.optimizer.lr = 0.001
@@ -166,9 +172,10 @@ def main(train_head, args):
         test_loader = return_test_loader(cfg_loader, test_mapper)
 
         saveHook = return_savehook(output_name)
-        lossHook = return_evallosshook(val_per, model, test_loader)
+        #lossHook = return_evallosshook(val_per, model, test_loader)
         schedulerHook = return_schedulerhook(optimizer)
-        hookList = [lossHook, schedulerHook, saveHook]
+        #hookList = [lossHook, schedulerHook, saveHook]
+        hookList = [schedulerHook, saveHook]
 
         trainer = return_lazy_trainer(model, loader, optimizer, cfg, cfg_loader, hookList)
 
