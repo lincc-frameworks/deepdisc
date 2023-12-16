@@ -255,7 +255,7 @@ class AstroPredictor:
         inputs = cv2.imread("input.jpg")
         outputs = pred(inputs)
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg, checkpoint=None):
         self.cfg = cfg.clone()  # cfg can be modified by model
 
         self.model = instantiate(self.cfg.model)
@@ -266,7 +266,13 @@ class AstroPredictor:
             self.metadata = MetadataCatalog.get(cfg.DATASETS.TEST[0])
 
         checkpointer = DetectionCheckpointer(self.model, cfg.OUTPUT_DIR)
-        checkpointer.load(cfg.train.init_checkpoint)
+
+        # If we provide AstroPredictor with a checkpoint already loaded in memory
+        # just simply load the weights into the model.
+        if checkpoint:
+            checkpointer._load_model(checkpoint)
+        else:
+            checkpointer.load(cfg.train.init_checkpoint)
         
         self.aug = T.ResizeShortestEdge(
             [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
