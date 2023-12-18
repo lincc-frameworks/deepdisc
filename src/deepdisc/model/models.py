@@ -62,6 +62,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def __init__(
         self,
         num_components: int,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -91,6 +92,9 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
 
         self._output_size = (inshape.channels, inshape.height, inshape.width)
         self.num_components = num_components
+        self.zloss_factor = zloss_factor
+
+
 
         self.redshift_fc = nn.Sequential(
             nn.Linear(int(np.prod(self._output_size)), 1024),
@@ -131,9 +135,9 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
             pdfs_fg = self.output_pdf(fcs[fg_inds, ...])
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
-            nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
+            #nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds]) 
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
+            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * self.zloss_factor
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
@@ -183,6 +187,7 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
     # def __init__(self, cfg, input_shape):
     def __init__(
         self,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -216,6 +221,8 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
         # The input dim should follow from the classification head
         self._output_size = (inshape.channels, inshape.height, inshape.width)
 
+        self.zloss_factor = zloss_factor
+        
         # self.redshift_fc = nn.Linear(int(np.prod(self._output_size)), 1)
 
         self.redshift_fc = nn.Sequential(
@@ -257,7 +264,7 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
 
-            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * 0.1
+            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * self.zloss_factor
             # $diff = prediction - gt_redshifts
 
             return {"redshift_loss": torch.square(diff).mean()}
@@ -292,6 +299,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
 
     def __init__(
         self,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -327,6 +335,8 @@ class RedshiftPointROIHeads(StandardROIHeads):
             sampling_ratio=0,
             pooler_type="ROIAlignV2",
         )
+        
+        slef.zloss_factor = zloss_factor
 
         in_channels = 256
         inshape = ShapeSpec(channels=in_channels, height=7, width=7)
@@ -362,7 +372,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
             gt_classes = cat([x.gt_classes for x in instances])
             fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
             gt_redshifts = cat([x.gt_redshift for x in instances])
-            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * 0.1
+            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * self.zloss_factor
             # diff = prediction - cat([x.gt_redshift for x in instances])
             return {"redshift_loss": torch.square(diff).mean()}
         else:
@@ -417,6 +427,7 @@ class RedshiftPDFROIHeads(StandardROIHeads):
     def __init__(
         self,
         num_components: int,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -453,6 +464,8 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             pooler_type="ROIAlignV2",
         )
 
+        self.zloss_factor = zloss_factor
+        
         in_channels = 256
         inshape = ShapeSpec(channels=in_channels, height=7, width=7)
 
@@ -503,7 +516,7 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             gt_redshifts = cat([x.gt_redshift for x in instances])
             nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
+            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * self.zloss_factor
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
