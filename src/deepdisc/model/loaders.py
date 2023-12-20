@@ -150,7 +150,7 @@ class RedshiftDictMapper(DataMapper):
 
     
     
-class RedshiftDictMapperAnnos(DataMapper):
+class RedshiftEBVDictMapper(DataMapper):
     def __init__(self, *args, **kwargs):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
@@ -192,6 +192,7 @@ class RedshiftDictMapperAnnos(DataMapper):
         instances = utils.annotations_to_instances(annos, image.shape[1:])
 
         instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+        instances.gt_ebv = torch.tensor([a["EBV"] for a in annos])
 
         instances = utils.filter_empty_instances(instances)
 
@@ -203,7 +204,7 @@ class RedshiftDictMapperAnnos(DataMapper):
             "width": image.shape[2],
             "image_id": dataset_dict["image_id"],
             "instances": instances,
-            "annotations": annos
+            #"annotations": annos
         }
 
     
