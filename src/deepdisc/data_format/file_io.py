@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 
 import numpy as np
+import random
+import shutil
 
 
 class DDLoader:
@@ -186,6 +188,51 @@ class DDLoader:
 
         if len(num_files) > 1:
             raise RuntimeError(f"Found different number of files for each filter: {file_counts}")
+            
+            
+    def random_sample(self,outdir,filedict=None,sets=['train','test'], nfiles=[3,1]):
+        """Generates randomly sampled subsets of the data, assuming the scarlet output exists
+
+        Parameters
+        ----------
+        outdir: str
+            Base output directory
+        filedict: dict
+            Dictionary of files to be sampled
+        sets: list[str]
+            Name of subsets
+        nfiles:
+            How many files go in each subset
+        
+        """
+        
+        if filedict is None:
+            if self.filedict is None:
+                raise ValueError("No file dictionary has been provided.")
+            else:
+                filedict = self.filedict
+                
+        
+        
+        img_files = np.transpose([filedict[filt]["img"] for filt in filedict["filters"]])
+        mask_files = np.transpose([filedict["mask"]])
+
+        for i,dset in enumerate(sets):
+            if not os.path.isdir(os.path.join(outdir,dset)):
+                os.makedirs(os.path.join(outdir,dset))                
+
+            allinds=range(len(img_files))
+            inds=random.sample(allinds, nfiles[i])
+            new_img_files = img_files[inds]
+            new_mask_files = mask_files[inds]
+            for imfs, maskfs in zip(new_img_files,new_mask_files):
+                for imf in imfs:
+                    shutil.copy(imf, os.path.join(os.path.join(outdir,dset),ntpath.basename(imf)))
+                shutil.copy(maskfs[0], os.path.join(os.path.join(outdir,dset),ntpath.basename(maskfs[0])))
+            img_files = np.array([img_files[j] for j in allinds if j not in inds])
+        
+        
+        return self
 
 
 def get_data_from_json(filename):

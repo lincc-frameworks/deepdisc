@@ -255,7 +255,7 @@ class AstroPredictor:
         inputs = cv2.imread("input.jpg")
         outputs = pred(inputs)
     """
-    def __init__(self, cfg, lazy=False, cfglazy=None):
+    def __init__(self, cfg, lazy=False, cfglazy=None, checkpoint=None):
         self.cfg = copy.deepcopy(cfg) # cfg can be modified by model
         
         if "model" in self.cfg: # This is when were using a LazyConfig-style model in the solo config
@@ -271,8 +271,14 @@ class AstroPredictor:
             self.metadata = MetadataCatalog.get(cfg.DATASETS.TEST[0])
 
         checkpointer = DetectionCheckpointer(self.model)
-        checkpointer.load(cfg.MODEL.WEIGHTS)
 
+        # If we provide AstroPredictor with a checkpoint already loaded in memory
+        # just simply load the weights into the model.
+        if checkpoint:
+            checkpointer._load_model(checkpoint)
+        else:
+            checkpointer.load(cfg.train.init_checkpoint)
+        
         self.aug = T.ResizeShortestEdge(
             [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
         )

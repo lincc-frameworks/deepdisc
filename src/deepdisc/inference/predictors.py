@@ -1,7 +1,7 @@
 import deepdisc.astrodet.astrodet as toolkit
 
 
-def return_predictor_transformer(cfg):
+def return_predictor_transformer(cfg, checkpoint=None):
     """This function returns a trained model and its config file.
     
     Used for models with lazy config files. Also assumes a cascade roi head structure.
@@ -15,7 +15,7 @@ def return_predictor_transformer(cfg):
         torch model
 
     """
-    predictor = toolkit.AstroPredictor(cfg)
+    predictor = toolkit.AstroPredictor(cfg, checkpoint=checkpoint)
     return predictor
 
 
