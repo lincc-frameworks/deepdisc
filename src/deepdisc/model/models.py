@@ -62,6 +62,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
     def __init__(
         self,
         num_components: int,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -91,13 +92,17 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
 
         self._output_size = (inshape.channels, inshape.height, inshape.width)
         self.num_components = num_components
+        self.zloss_factor = zloss_factor
+
+
 
         self.redshift_fc = nn.Sequential(
-            nn.Linear(int(np.prod(self._output_size)), 1024),
+            nn.Linear(np.prod(self._output_size), 1024),
             nn.Tanh(),
             nn.Linear(1024, 64),
             nn.Tanh(),
             nn.Linear(64, self.num_components * 3),
+            #nn.Softplus()
         )
 
     def output_pdf(self, inputs):
@@ -106,7 +111,8 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
                 mixture_distribution=Categorical(logits=inputs[..., : self.num_components]),
                 component_distribution=Normal(
                     inputs[..., self.num_components : 2 * self.num_components],
-                    F.softplus(inputs[..., 2 * self.num_components :]),
+                    #F.softplus(inputs[..., 2 * self.num_components :]),
+                    torch.exp(inputs[..., 2 * self.num_components :]),
                 ),
             ),
             0,
@@ -114,26 +120,28 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
         return pdf
 
     def _forward_redshift(self, features, instances):
+        
+        if self.training:
+            instances, _ = select_foreground_proposals(instances, self.num_classes)
+        
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
             boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
 
         features = nn.Flatten()(features)
-
+        #ebvs = cat([x.gt_ebv for x in instances])
+        #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
+        
         num_instances_per_img = [len(i) for i in instances]
 
         if self.training:
             fcs = self.redshift_fc(features)
             pdfs = self.output_pdf(fcs)
-            gt_classes = cat([x.gt_classes for x in instances])
-            fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
-            pdfs_fg = self.output_pdf(fcs[fg_inds, ...])
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
-            nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
+            nlls = -pdfs.log_prob(gt_redshifts) * self.zloss_factor
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
