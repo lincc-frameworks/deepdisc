@@ -25,7 +25,24 @@ def make_inference_arg_parser():
     parser.add_argument("--savedir", default=".", type=str)
     parser.add_argument("--scheme", default=2, type=int, help="classification scheme")
     parser.add_argument("--testfile", default="/home/shared/hsc/HSC/HSC_DR3/data/single_test.json", type=str)
-
+    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
+    parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
+    parser.add_argument(
+        "--machine-rank",
+        type=int,
+        default=0,
+        help="the rank of this machine (unique per machine)",
+    )
+    
+    port = 2**15 + 2**14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
+    parser.add_argument(
+        "--dist-url",
+        default="tcp://127.0.0.1:{}".format(port),
+        help="initialization URL for pytorch distributed backend. See "
+        "https://pytorch.org/docs/stable/distributed.html for details.",
+    )
+    
+    
     return parser
 
 

@@ -245,15 +245,16 @@ def run_batched_match_class(dataloader, predictor):
     """
     true_classes = []
     pred_classes = []
-    for i, dataset_dicts in enumerate(dataloader):
-        batched_outputs = predictor.model(dataset_dicts)
-        for d, outputs in zip(batched_outputs, dataset_dicts):
-            matched_gts, matched_dts = get_matched_object_inds(d, outputs)
-            for gti, dti in zip(matched_gts, matched_dts):
-                true_class = d["annotations"][int(gti)]["category_id"]
-                pred_class = outputs["instances"].pred_classes.cpu().detach().numpy()[int(dti)]
-                true_classes.append(true_class)
-                pred_classes.append(pred_class)
+    with torch.no_grad():
+        for i, dataset_dicts in enumerate(dataloader):
+            batched_outputs = predictor.model(dataset_dicts)[0]
+            for outputs,d in zip(batched_outputs, dataset_dicts):
+                matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+                for gti, dti in zip(matched_gts, matched_dts):
+                    true_class = d["annotations"][int(gti)]["category_id"]
+                    pred_class = outputs["instances"].pred_classes.cpu().detach().numpy()[int(dti)]
+                    true_classes.append(true_class)
+                    pred_classes.append(pred_class)
     return true_classes, pred_classes
 
 
@@ -265,7 +266,7 @@ def run_batched_match_redshift(dataloader, predictor):
     ztrues = []
     zpreds = []
     for i, dataset_dicts in enumerate(dataloader):
-        batched_outputs = predictor.model(dataset_dicts)
+        batched_outputs = predictor.model(dataset_dicts)[0]
         for d, outputs in zip(batched_outputs, dataset_dicts):
             matched_gts, matched_dts = get_matched_object_inds(d, outputs)
             for gti, dti in zip(matched_gts, matched_dts):
