@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 import h5py
 import numpy as np
 import scarlet
+import json
 
 
 def fitsim_to_numpy(img_files, outdir):
@@ -80,10 +81,10 @@ def ddict_to_hdf5(dataset_dicts, outname):
     outname: str
         The name of the output file
     """
-
-    data = [json.dumps(this_dict) for this_dict in dataset_dicts]
-
-    dt = h5py.special_dtype(vlen=str)
-
-    dataset = file.create_dataset(outname, data=data, dtype=dt)
+    
+    with h5py.File(outname, 'w') as file:
+        data = [json.dumps(this_dict) for this_dict in dataset_dicts]
+        dt = h5py.special_dtype(vlen=str)
+        dataset = file.create_dataset('metadata_dicts', data=data, dtype=dt)
+        
     return
