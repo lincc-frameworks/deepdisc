@@ -247,7 +247,7 @@ def run_batched_match_class(dataloader, predictor):
     pred_classes = []
     with torch.no_grad():
         for i, dataset_dicts in enumerate(dataloader):
-            batched_outputs = predictor.model(dataset_dicts)[0]
+            batched_outputs = predictor.model(dataset_dicts)
             for outputs,d in zip(batched_outputs, dataset_dicts):
                 matched_gts, matched_dts = get_matched_object_inds(d, outputs)
                 for gti, dti in zip(matched_gts, matched_dts):
@@ -265,14 +265,15 @@ def run_batched_match_redshift(dataloader, predictor):
     """
     ztrues = []
     zpreds = []
-    for i, dataset_dicts in enumerate(dataloader):
-        batched_outputs = predictor.model(dataset_dicts)[0]
-        for d, outputs in zip(batched_outputs, dataset_dicts):
-            matched_gts, matched_dts = get_matched_object_inds(d, outputs)
-            for gti, dti in zip(matched_gts, matched_dts):
-                ztrue = d["annotations"][int(gti)]["redshift"]
-                pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
-                ztrues.append(ztrue)
-                zpreds.append(pdf)
+    with torch.no_grad():
+        for i, dataset_dicts in enumerate(dataloader):
+            batched_outputs = predictor.model(dataset_dicts)
+            for outputs,d in zip(batched_outputs, dataset_dicts):
+                matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+                for gti, dti in zip(matched_gts, matched_dts):
+                    ztrue = d["annotations"][int(gti)]["redshift"]
+                    pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+                    ztrues.append(ztrue)
+                    zpreds.append(pdf)
 
     return ztrues, zpreds

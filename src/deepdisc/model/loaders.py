@@ -182,17 +182,19 @@ class RedshiftDictMapperEval(DataMapper):
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
 
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-            if annotation["redshift"] != 0.0
-        ]
+        annotations = [annotation for annotation in dataset_dict["annotations"] if annotation["redshift"] != 0.0]
+        
+        #annos = [
+        #    utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+        #    for annotation in dataset_dict.pop("annotations")
+        #    if annotation["redshift"] != 0.0
+        #]
 
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
+        #instances = utils.annotations_to_instances(annos, image.shape[1:])
 
-        instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+        #instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
 
-        instances = utils.filter_empty_instances(instances)
+        #instances = utils.filter_empty_instances(instances)
 
         return {
             # create the format that the model expects
@@ -201,8 +203,8 @@ class RedshiftDictMapperEval(DataMapper):
             "height": image.shape[1],
             "width": image.shape[2],
             "image_id": dataset_dict["image_id"],
-            "instances": instances,
-            "annotations": annos
+            #"instances": instances,
+            "annotations": annotations
         }
 
 
