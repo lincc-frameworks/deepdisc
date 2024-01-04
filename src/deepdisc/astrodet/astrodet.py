@@ -275,10 +275,8 @@ class AstroPredictor:
         # If we provide AstroPredictor with a checkpoint already loaded in memory
         # just simply load the weights into the model.
         if checkpoint:
-            print('checkpoint')
             checkpointer._load_model(checkpoint)
         else:
-            print('no checkpoint')
             checkpointer.load(cfg.train.init_checkpoint)
         
         self.aug = T.ResizeShortestEdge(
