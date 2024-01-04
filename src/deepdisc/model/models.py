@@ -7,7 +7,7 @@ from detectron2.engine.defaults import create_ddp_model
 from detectron2.layers import Conv2d, ShapeSpec, cat, get_norm, nonzero_tuple
 from detectron2.modeling.matcher import Matcher
 from detectron2.modeling.poolers import ROIPooler
-from detectron2.modeling.roi_heads import CascadeROIHeads, StandardROIHeads
+from detectron2.modeling.roi_heads import CascadeROIHeads, StandardROIHeads, select_foreground_proposals
 from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
 from torch import nn
 from torch.distributions.beta import Beta
