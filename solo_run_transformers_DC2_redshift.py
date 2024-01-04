@@ -139,17 +139,17 @@ def main(train_head, args):
         # optimizer = instantiate(cfg.optimizer)
         optimizer = return_optimizer(cfg)
 
-        #def dc2_key_mapper(dataset_dict):
-        #    filename = dataset_dict["filename"]
-        #    return filename
-
         def dc2_key_mapper(dataset_dict):
             filename = dataset_dict["filename"]
-            print(filename)
-            base = filename.split(".")[0].split("/")[-1]
-            dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
-            fn = os.path.join(dirpath, base) + ".npy"
-            return fn
+            return filename
+
+        #def dc2_key_mapper(dataset_dict):
+        #    filename = dataset_dict["filename"]
+        #    print(filename)
+        #    base = filename.split(".")[0].split("/")[-1]
+        #    dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+        #    fn = os.path.join(dirpath, base) + ".npy"
+        #    return fn
 
         IR = DC2ImageReader()
         mapper = RedshiftDictMapper(IR, dc2_key_mapper, train_augs).map_data
