@@ -33,6 +33,26 @@ import torch.distributed as dist
 # Inference should use the config with parameters that are used in training
 # cfg now already contains everything we've set previously. We changed it a little bit for inference:
 
+
+import torch.distributed as dist
+
+
+def gather_predictions(array, array_list=None, root=0, group=None):
+    """
+        Sends tensor to root process, which store it in tensor_list.
+    """
+  
+    rank = dist.get_rank()
+    if group is None:
+        group = dist.group.WORLD
+    if rank == root:
+        assert(array_list is not None)
+        dist.gather_object(array, object_gather_list=array_list, group=group)
+    else:
+        dist.gather_object(array, dst=root, group=group)
+
+
+
 def main(args):
     # --------- Handle args
     roi_thresh = args.roi_thresh
@@ -112,11 +132,32 @@ def main(args):
     
     true_zs, pred_pdfs = run_batched_match_redshift(loader, predictor)
 
-    print(true_zs, pred_pdfs)
+    #print(true_zs, pred_pdfs)
+    if dist.get_rank() == 0:
+        print(true_zs[10],pred_pdfs[10])
+        
+        
     
-    np.save(f'pdfs{dist.get_rank()}.npy',pred_pdfs)
-    np.save(f'true_zs{dist.get_rank()}.npy',true_zs)
+    #np.save(f'pdfs{dist.get_rank()}.npy',pred_pdfs)
+    #np.save(f'true_zs{dist.get_rank()}.npy',true_zs)
 
+    #size is the world size
+    size = args.num_machines * args.num_gpus
+    true_zlist = [None for _ in range(size)]
+    pred_zlist = [None for _ in range(size)]
+
+    if dist.get_rank() == 0:
+        gather_predictions(true_zs, true_zlist)
+        gather_predictions(pred_pdfs, pred_zlist)
+
+    else:
+        gather_predictions(true_zs)
+        gather_predictions(pred_pdfs)
+
+    if dist.get_rank() == 0:
+        #pred_zlist = np.concatenate([pred_list for pred_list in pred_zlist])
+        np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
+        np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
 
 
 if __name__ == "__main__":
