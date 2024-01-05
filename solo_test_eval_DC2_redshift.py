@@ -96,17 +96,17 @@ def main(args):
         predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
     # --------- 
-    #def dc2_key_mapper(dataset_dict):
-    #    filename = dataset_dict["filename"]
-    #    return filename
-
-    
     def dc2_key_mapper(dataset_dict):
         filename = dataset_dict["filename"]
-        base = filename.split(".")[0].split("/")[-1]
-        dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
-        fn = os.path.join(dirpath, base) + ".npy"
-        return fn
+        return filename
+
+    
+    #def dc2_key_mapper(dataset_dict):
+    #    filename = dataset_dict["filename"]
+    #    base = filename.split(".")[0].split("/")[-1]
+    #    dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+    #    fn = os.path.join(dirpath, base) + ".npy"
+    #    return fn
     
     IR = DC2ImageReader()
     
@@ -130,11 +130,12 @@ def main(args):
     classes = np.array([true_classes, pred_classes])
     
     
-    true_zs, pred_pdfs = run_batched_match_redshift(loader, predictor)
+    true_zs, pred_pdfs, ids = run_batched_match_redshift(loader, predictor, ids=True)
         
     if size==1:
         np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_pdfs)
         np.save(os.path.join(args.savedir,'true_zs.npy'),true_zs)
+        np.save(os.path.join(args.savedir,'ids.npy'),ids)
 
         return
 
@@ -143,19 +144,25 @@ def main(args):
         #size is the world size
         true_zlist = [None for _ in range(size)]
         pred_zlist = [None for _ in range(size)]
-    
+        id_list = [None for _ in range(size)]
+
         if dist.get_rank() == 0:
             gather_predictions(true_zs, true_zlist)
             gather_predictions(pred_pdfs, pred_zlist)
-    
+            gather_predictions(ids, id_list)
+
         else:
             gather_predictions(true_zs)
             gather_predictions(pred_pdfs)
+            gather_predictions(ids)
+
     
         if dist.get_rank() == 0:
             #pred_zlist = np.concatenate([pred_list for pred_list in pred_zlist])
             np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
             np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
+            np.save(os.path.join(args.savedir,'ids.npy'),id_list)
+
         return
     
 
