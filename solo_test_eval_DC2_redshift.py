@@ -96,17 +96,17 @@ def main(args):
         predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
     # --------- 
-    #def dc2_key_mapper(dataset_dict):
-    #    filename = dataset_dict["filename"]
-    #    return filename
-
-    
     def dc2_key_mapper(dataset_dict):
         filename = dataset_dict["filename"]
-        base = filename.split(".")[0].split("/")[-1]
-        dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
-        fn = os.path.join(dirpath, base) + ".npy"
-        return fn
+        return filename
+
+    
+    #def dc2_key_mapper(dataset_dict):
+    #    filename = dataset_dict["filename"]
+    #    base = filename.split(".")[0].split("/")[-1]
+    #    dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+    #    fn = os.path.join(dirpath, base) + ".npy"
+    #    return fn
     
     IR = DC2ImageReader()
     
