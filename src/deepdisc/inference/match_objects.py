@@ -118,7 +118,7 @@ def get_matched_object_classes_new(dataset_dicts, predictor):
     return true_classes, pred_classes
 
 
-def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor):
+def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor, ids=False):
     """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
 
     Parameters
@@ -145,6 +145,7 @@ def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor):
 
     ztrues = []
     zpreds = []
+    matched_ids=[]
 
     for d in dataset_dicts:
         outputs = get_predictions(d, imreader, key_mapper, predictor)
@@ -153,14 +154,17 @@ def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor):
         for gti, dti in zip(matched_gts, matched_dts):
             ztrue = d["annotations"][int(gti)]["redshift"]
             pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+            if ids:
+                oid = d["annotations"][int(gti)]["obj_id"]
+                matched_ids.append(oid)
 
             ztrues.append(ztrue)
             zpreds.append(pdf)
 
-    return ztrues, zpreds
+    return ztrues, zpreds, matched_ids
 
 
-def get_matched_z_pdfs_new(dataset_dicts, predictor):
+def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False):
     """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
     assuming the dataset_dicts have the image HxWxC in the 'image_shaped' field
 
@@ -183,6 +187,7 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor):
 
     ztrues = []
     zpreds = []
+    matched_ids=[]
 
     for d in dataset_dicts:
         outputs = get_predictions_new(d, predictor)
@@ -191,17 +196,19 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor):
         for gti, dti in zip(matched_gts, matched_dts):
             ztrue = d["annotations"][int(gti)]["redshift"]
             pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+            if ids:
+                oid = d["annotations"][int(gti)]["obj_id"]
+                matched_ids.append(oid)
 
             ztrues.append(ztrue)
             zpreds.append(pdf)
 
-    return ztrues, zpreds
-
+    return ztrues, zpreds, matched_ids
 
 
 def get_matched_z_points_new(dataset_dicts, predictor):
     """Returns redshift point estimates for matched pairs of ground truth and detected objects test images
-    assuming the dataset_dicts have the image HxWxC in the 'image_shaped' field
+    assuming the dataset_dicts have the image in the 'image_shaped' field
 
     Parameters
     ----------
@@ -258,13 +265,14 @@ def run_batched_match_class(dataloader, predictor):
     return true_classes, pred_classes
 
 
-def run_batched_match_redshift(dataloader, predictor):
+def run_batched_match_redshift(dataloader, predictor, ids=False):
     """
     Test function not yet implemented for batch prediction
 
     """
     ztrues = []
     zpreds = []
+    matched_ids = []
     with torch.no_grad():
         for i, dataset_dicts in enumerate(dataloader):
             batched_outputs = predictor.model(dataset_dicts)
@@ -275,5 +283,14 @@ def run_batched_match_redshift(dataloader, predictor):
                     pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
                     ztrues.append(ztrue)
                     zpreds.append(pdf)
+                    if ids:
+                        oid = d["annotations"][int(gti)]["obj_id"]
+                        matched_ids.append(oid)
 
-    return ztrues, zpreds
+
+    return ztrues, zpreds, matched_ids
+
+
+
+
+
