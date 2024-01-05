@@ -54,6 +54,8 @@ def gather_predictions(array, array_list=None, root=0, group=None):
 
 
 def main(args):
+    size = args.num_gpus * args.num_machines
+    
     # --------- Handle args
     roi_thresh = args.roi_thresh
     run_name = args.run_name
@@ -94,19 +96,17 @@ def main(args):
         predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
     # --------- 
-    def dc2_key_mapper(dataset_dict):
-        filename = dataset_dict["filename"]
-        return filename
-
-    
     #def dc2_key_mapper(dataset_dict):
     #    filename = dataset_dict["filename"]
-    #    print(filename)
-    #    base = filename.split(".")[0].split("/")[-1]
-    #    print(base)
-    #    dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
-    #    fn = os.path.join(dirpath, base) + ".npy"
-    #    return fn
+    #    return filename
+
+    
+    def dc2_key_mapper(dataset_dict):
+        filename = dataset_dict["filename"]
+        base = filename.split(".")[0].split("/")[-1]
+        dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+        fn = os.path.join(dirpath, base) + ".npy"
+        return fn
     
     IR = DC2ImageReader()
     
@@ -131,34 +131,33 @@ def main(args):
     
     
     true_zs, pred_pdfs = run_batched_match_redshift(loader, predictor)
-
-    #print(true_zs, pred_pdfs)
-    if dist.get_rank() == 0:
-        print(true_zs[10],pred_pdfs[10])
         
-        
-    
-    #np.save(f'pdfs{dist.get_rank()}.npy',pred_pdfs)
-    #np.save(f'true_zs{dist.get_rank()}.npy',true_zs)
+    if size==1:
+        np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_pdfs)
+        np.save(os.path.join(args.savedir,'true_zs.npy'),true_zs)
 
-    #size is the world size
-    size = args.num_machines * args.num_gpus
-    true_zlist = [None for _ in range(size)]
-    pred_zlist = [None for _ in range(size)]
+        return
 
-    if dist.get_rank() == 0:
-        gather_predictions(true_zs, true_zlist)
-        gather_predictions(pred_pdfs, pred_zlist)
 
     else:
-        gather_predictions(true_zs)
-        gather_predictions(pred_pdfs)
-
-    if dist.get_rank() == 0:
-        #pred_zlist = np.concatenate([pred_list for pred_list in pred_zlist])
-        np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
-        np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
-
+        #size is the world size
+        true_zlist = [None for _ in range(size)]
+        pred_zlist = [None for _ in range(size)]
+    
+        if dist.get_rank() == 0:
+            gather_predictions(true_zs, true_zlist)
+            gather_predictions(pred_pdfs, pred_zlist)
+    
+        else:
+            gather_predictions(true_zs)
+            gather_predictions(pred_pdfs)
+    
+        if dist.get_rank() == 0:
+            #pred_zlist = np.concatenate([pred_list for pred_list in pred_zlist])
+            np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
+            np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
+        return
+    
 
 if __name__ == "__main__":
     args = make_inference_arg_parser().parse_args()

@@ -128,7 +128,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
             features = [features[f] for f in self.box_in_features]
             boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
-
+        
         features = nn.Flatten()(features)
         #ebvs = cat([x.gt_ebv for x in instances])
         #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
@@ -149,20 +149,35 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
             # print(len(instances[0]))
             if len(instances[0]) == 0:
                 return instances
-            # for i, instances in enumerate(instances):
-            #    if num_instances_per_img[i] ==0:
-            #        continue
+                
             fcs = self.redshift_fc(features)
             pdfs = self.output_pdf(fcs)
             zs = torch.tensor(np.linspace(0, 5, 200)).to(fcs.device)
+            nin = torch.as_tensor(np.array([num_instances_per_img]))
+            #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
 
-            probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
-            for i, z in enumerate(zs):
-                # probs.append(outputs.log_prob(z))
-                probs[:, i] = pdfs.log_prob(z)
+            inds = np.cumsum(num_instances_per_img)
+
+            
+
+            probs = torch.zeros((torch.sum(nin), 200)).to(fcs.device)
+            for j, z in enumerate(zs):
+                probs[:, j] = pdfs.log_prob(z)
 
             for i, pred_instances in enumerate(instances):
-                pred_instances.pred_redshift_pdf = probs
+                pred_instances.pred_redshift_pdf = np.split(probs,inds)[i]
+                
+            
+            #for i, pred_instances in enumerate(instances):
+            #    probs = torch.zeros((num_instances_per_img[i], 200)).to(fcs.device)
+            #    for j, z in enumerate(zs):
+            #        if i<len(num_instances_per_img)-1:
+            #            probs[:, j] = pdfs.log_prob(z)[lowi:highi]
+            #        else:
+            #            probs[:, j] = pdfs.log_prob(z)[lowi:]
+            #    pred_instances.pred_redshift_pdf = probs
+            #    lowi=highi
+            #    highi=num_instances_per_img[i+1]+lowi
 
             return instances
 
