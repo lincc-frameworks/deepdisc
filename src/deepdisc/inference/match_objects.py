@@ -160,7 +160,7 @@ def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor):
     return ztrues, zpreds
 
 
-def get_matched_z_pdfs_new(dataset_dicts, predictor):
+def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False):
     """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
     assuming the dataset_dicts have the image HxWxC in the 'image_shaped' field
 
@@ -184,18 +184,35 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor):
     ztrues = []
     zpreds = []
 
-    for d in dataset_dicts:
-        outputs = get_predictions_new(d, predictor)
-        matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+    if not ids:
+        for d in dataset_dicts:
+            outputs = get_predictions_new(d, predictor)
+            matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+    
+            for gti, dti in zip(matched_gts, matched_dts):
+                ztrue = d["annotations"][int(gti)]["redshift"]
+                pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+    
+                ztrues.append(ztrue)
+                zpreds.append(pdf)
 
-        for gti, dti in zip(matched_gts, matched_dts):
-            ztrue = d["annotations"][int(gti)]["redshift"]
-            pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+        return ztrues, zpreds
 
-            ztrues.append(ztrue)
-            zpreds.append(pdf)
+    else:
+        matched_ids=[]
+        for d in dataset_dicts:
+            outputs = get_predictions_new(d, predictor)
+            matched_gts, matched_dts = get_matched_object_inds(d, outputs)
+    
+            for gti, dti in zip(matched_gts, matched_dts):
+                ztrue = d["annotations"][int(gti)]["redshift"]
+                pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+                oid = d["annotations"][int(gti)]["objectId"]
+                ztrues.append(ztrue)
+                zpreds.append(pdf)
+                matched_ids.append(oid)
 
-    return ztrues, zpreds
+        return ztrues, zpreds, matched_ids
 
 
 
