@@ -44,12 +44,9 @@ from detectron2.engine import (
     launch,
 )
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
-
-# Prettify the plotting
-from astrodet.astrodet import set_mpl_style, test_mapper_cls, train_mapper_cls
-
+import deepdisc.astrodet.astrodet as toolkit
+from deepdisc.astrodet import detectron as detectron_addons
+from deepdisc.astrodet.astrodet import set_mpl_style, test_mapper_cls, train_mapper_cls
 set_mpl_style()
 
 

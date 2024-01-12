@@ -20,9 +20,6 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 
-# from astrodet import astrodet as toolkit
-# from astrodet import detectron as detectron_addons
-
 import deepdisc.astrodet.astrodet as toolkit
 
 logger = logging.getLogger(__name__)
