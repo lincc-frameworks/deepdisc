@@ -44,12 +44,9 @@ from detectron2.engine import (
     launch,
 )
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
-
-# Prettify the plotting
-from astrodet.astrodet import set_mpl_style
-
+import deepdisc.astrodet.astrodet as toolkit
+from deepdisc.astrodet import detectron as detectron_addons
+from deepdisc.astrodet.astrodet import set_mpl_style, test_mapper_cls, train_mapper_cls
 set_mpl_style()
 
 
@@ -91,132 +88,6 @@ def centercrop(image):
     wc = (w - w // 2) // 2
     image = image[hc : hc + h // 2, wc : wc + w // 2]
     return image
-
-
-class train_mapper_cls:
-    def __init__(self, **read_image_args):
-        self.ria = read_image_args
-
-    def __call__(self, dataset_dict):
-        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        filenames = [dataset_dict["filename_G"], dataset_dict["filename_R"], dataset_dict["filename_I"]]
-
-        # image = read_image(dataset_dict["file_name"], normalize=args.norm, ceil_percentile=99.99)
-        image = toolkit.read_image_hsc(
-            filenames,
-            normalize=self.ria["normalize"],
-            ceil_percentile=self.ria["ceil_percentile"],
-            dtype=self.ria["dtype"],
-            A=self.ria["A"],
-            stretch=self.ria["stretch"],
-            Q=self.ria["Q"],
-            do_norm=self.ria["do_norm"],
-        )
-        """
-        augs = T.AugmentationList([
-            T.RandomRotation([-90, 90, 180], sample_style='choice'),
-            T.RandomFlip(prob=0.5),
-            T.RandomFlip(prob=0.5,horizontal=False,vertical=True),
-            T.Resize((512,512))
-            
-        ])
-        """
-
-        augs = detectron_addons.KRandomAugmentationList(
-            [
-                # my custom augs
-                T.RandomRotation([-90, 90, 180], sample_style="choice"),
-                T.RandomFlip(prob=0.5),
-                T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-                # detectron_addons.CustomAug(gaussblur,prob=1.0),
-                # detectron_addons.CustomAug(addelementwise,prob=1.0)
-                # CustomAug(white),
-            ],
-            k=-1,
-            # cropaug=T.RandomCrop('relative',(0.5,0.5))
-            cropaug=_transform_to_aug(
-                T.CropTransform(
-                    image.shape[1] // 4, image.shape[0] // 4, image.shape[1] // 2, image.shape[0] // 2
-                )
-            ),
-            # cropaug=None
-        )
-
-        # Data Augmentation
-        auginput = T.AugInput(image)
-        # Transformations to model shapes
-        transform = augs(auginput)
-        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-        ]
-
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
-        instances = utils.filter_empty_instances(instances)
-
-        return {
-            # create the format that the model expects
-            "image": image,
-            "image_shaped": auginput.image,
-            "height": image.shape[1],
-            "width": image.shape[2],
-            "image_id": dataset_dict["image_id"],
-            "instances": instances,
-            # "instances": utils.annotations_to_instances(annos, image.shape[1:])
-        }
-
-
-class test_mapper_cls:
-    def __init__(self, **read_image_args):
-        self.ria = read_image_args
-
-    def __call__(self, dataset_dict):
-        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        filenames = [dataset_dict["filename_G"], dataset_dict["filename_R"], dataset_dict["filename_I"]]
-
-        image = toolkit.read_image_hsc(
-            filenames,
-            normalize=self.ria["normalize"],
-            ceil_percentile=self.ria["ceil_percentile"],
-            dtype=self.ria["dtype"],
-            A=self.ria["A"],
-            stretch=self.ria["stretch"],
-            Q=self.ria["Q"],
-            do_norm=self.ria["do_norm"],
-        )
-
-        augs = T.AugmentationList(
-            [
-                T.CropTransform(
-                    image.shape[1] // 4, image.shape[0] // 4, image.shape[1] // 2, image.shape[0] // 2
-                )
-            ]
-        )
-
-        # Data Augmentation
-        auginput = T.AugInput(image)
-        # Transformations to model shapes
-        transform = augs(auginput)
-        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-        ]
-
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
-        instances = utils.filter_empty_instances(instances)
-
-        return {
-            # create the format that the model expects
-            "image": image,
-            "image_shaped": auginput.image,
-            "height": image.shape[1],
-            "width": image.shape[2],
-            "image_id": dataset_dict["image_id"],
-            "instances": instances,
-        }
 
 
 def main(tl, train_head, args):

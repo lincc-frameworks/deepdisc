@@ -25,8 +25,8 @@ from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 from detectron2.engine import launch
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
+import deepdisc.astrodet.astrodet as toolkit
+from deepdisc.astrodet import detectron as detectron_addons
 
 # Prettify the plotting
 from astrodet.astrodet import set_mpl_style

@@ -46,9 +46,6 @@ from deepdisc.training.trainers import (
 )
 from deepdisc.utils.parse_arguments import make_training_arg_parser
 
-# from astrodet import astrodet as toolkit
-# from astrodet import detectron as detectron_addons
-
 
 def main(train_head, args):
     # Hack if you get SSL certificate error

@@ -47,11 +47,11 @@ from detectron2.engine import (
     launch,
 )
 
-from astrodet import astrodet as toolkit
-from astrodet import detectron as detectron_addons
+import deepdisc.astrodet.astrodet as toolkit
+from deepdisc.astrodet import detectron as detectron_addons
 
 # Prettify the plotting
-from astrodet.astrodet import set_mpl_style
+from deepdisc.astrodet.astrodet import set_mpl_style
 
 set_mpl_style()
 
@@ -66,96 +66,7 @@ from deepdisc.data_format.file_io import get_data_from_json
 from deepdisc.data_format.register_data import register_data_set
 from deepdisc.utils.parse_arguments import dtype_from_args, make_training_arg_parser
 
-
-class LazyAstroTrainer(SimpleTrainer):
-    def __init__(self, model, data_loader, optimizer, cfg, cfg_old):
-        super().__init__(model, data_loader, optimizer)
-        # super().__init__(model, data_loader, optimizer)
-
-        # Borrowed from DefaultTrainer constructor
-        # see https://detectron2.readthedocs.io/en/latest/_modules/detectron2/engine/defaults.html#DefaultTrainer
-        self.checkpointer = checkpointer.DetectionCheckpointer(
-            # Assume you want to save checkpoints together with logs/statistics
-            model,
-            cfg_old.OUTPUT_DIR,
-        )
-        # load weights
-        self.checkpointer.load(cfg.train.init_checkpoint)
-
-        # record loss over iteration
-        self.lossList = []
-        self.vallossList = []
-
-        self.period = 20
-        self.iterCount = 0
-
-        self.scheduler = self.build_lr_scheduler(cfg_old, optimizer)
-        # self.scheduler = instantiate(cfg.lr_multiplier)
-        self.valloss = 0
-
-    # Note: print out loss over p iterations
-    def set_period(self, p):
-        self.period = p
-
-    # Copied directly from SimpleTrainer, add in custom manipulation with the loss
-    # see https://detectron2.readthedocs.io/en/latest/_modules/detectron2/engine/train_loop.html#SimpleTrainer
-    def run_step(self):
-        self.iterCount = self.iterCount + 1
-        assert self.model.training, "[SimpleTrainer] model was changed to eval mode!"
-        start = time.perf_counter()
-        data_time = time.perf_counter() - start
-        data = next(self._data_loader_iter)
-        # Note: in training mode, model() returns loss
-        loss_dict = self.model(data)
-        # print('Loss dict',loss_dict)
-        if isinstance(loss_dict, torch.Tensor):
-            losses = loss_dict
-            loss_dict = {"total_loss": loss_dict}
-        else:
-            losses = sum(loss_dict.values())
-        self.optimizer.zero_grad()
-        losses.backward()
-
-        # self._write_metrics(loss_dict,data_time)
-
-        self.optimizer.step()
-
-        self.lossList.append(losses.cpu().detach().numpy())
-        if self.iterCount % self.period == 0 and comm.is_main_process():
-            print(
-                "Iteration: ",
-                self.iterCount,
-                " time: ",
-                data_time,
-                " loss: ",
-                losses.cpu().detach().numpy(),
-                "val loss: ",
-                self.valloss,
-                "lr: ",
-                self.scheduler.get_lr(),
-            )
-            # print("Iteration: ", self.iterCount, " time: ", data_time," loss: ",losses.cpu().detach().numpy(), "val loss: ",self.valloss, "lr: tbd", )
-
-        del data
-        gc.collect()
-        torch.cuda.empty_cache()
-
-    @classmethod
-    def build_lr_scheduler(cls, cfg, optimizer):
-        """
-        It now calls :func:`detectron2.solver.build_lr_scheduler`.
-        Overwrite it if you'd like a different scheduler.
-        """
-        return build_lr_scheduler(cfg, optimizer)
-
-    def add_val_loss(self, val_loss):
-        """
-        It now calls :func:`detectron2.solver.build_lr_scheduler`.
-        Overwrite it if you'd like a different scheduler.
-        """
-
-        self.vallossList.append(val_loss)
-
+from deepdisc.astrodet.astrodet import LazyAstroTrainer
 
 # ### Augment Data
 
@@ -186,148 +97,6 @@ def centercrop(image):
     wc = (w - w // 2) // 2
     image = image[hc : hc + h // 2, wc : wc + w // 2]
     return image
-
-
-class train_mapper_cls:
-    def __init__(self, **read_image_args):
-        self.ria = read_image_args
-
-    def __call__(self, dataset_dict):
-        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        filenames = [dataset_dict["filename_G"], dataset_dict["filename_R"], dataset_dict["filename_I"]]
-
-        # image = read_image(dataset_dict["file_name"], normalize=args.norm, ceil_percentile=99.99)
-        if self.ria["normalize"] != "random":
-            image = toolkit.read_image_hsc(
-                filenames,
-                normalize=self.ria["normalize"],
-                ceil_percentile=self.ria["ceil_percentile"],
-                dtype=self.ria["dtype"],
-                A=self.ria["A"],
-                stretch=self.ria["stretch"],
-                Q=self.ria["Q"],
-                do_norm=self.ria["do_norm"],
-            )
-        elif self.ria["normalize"] == "random":
-            scalings = np.array(["astrolupton", "astroluptonhc", "zscore"])
-            norm = np.random.choice(scalings, 1)[0]
-            if norm == "zscore":
-                dtype = np.int16
-            else:
-                dtype = np.uint8
-            image = toolkit.read_image_hsc(
-                filenames,
-                normalize=norm,
-                ceil_percentile=self.ria["ceil_percentile"],
-                dtype=dtype,
-                A=self.ria["A"],
-                stretch=self.ria["stretch"],
-                Q=self.ria["Q"],
-                do_norm=self.ria["do_norm"],
-            )
-
-        augs = detectron_addons.KRandomAugmentationList(
-            [
-                # my custom augs
-                T.RandomRotation([-90, 90, 180], sample_style="choice"),
-                T.RandomFlip(prob=0.5),
-                T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-            ],
-            k=-1,
-            cropaug=T.RandomCrop("relative", (0.5, 0.5)),
-        )
-
-        # Data Augmentation
-        auginput = T.AugInput(image)
-        # Transformations to model shapes
-        transform = augs(auginput)
-        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-        ]
-
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
-        instances = utils.filter_empty_instances(instances)
-
-        return {
-            # create the format that the model expects
-            "image": image,
-            "image_shaped": auginput.image,
-            "height": image.shape[1],
-            "width": image.shape[2],
-            "image_id": dataset_dict["image_id"],
-            "instances": instances,
-        }
-
-
-class test_mapper_cls:
-    def __init__(self, **read_image_args):
-        self.ria = read_image_args
-
-    def __call__(self, dataset_dict):
-        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-        filenames = [dataset_dict["filename_G"], dataset_dict["filename_R"], dataset_dict["filename_I"]]
-
-        if self.ria["normalize"] != "random":
-            image = toolkit.read_image_hsc(
-                filenames,
-                normalize=self.ria["normalize"],
-                ceil_percentile=self.ria["ceil_percentile"],
-                dtype=self.ria["dtype"],
-                A=self.ria["A"],
-                stretch=self.ria["stretch"],
-                Q=self.ria["Q"],
-                do_norm=self.ria["do_norm"],
-            )
-        elif self.ria["normalize"] == "random":
-            scalings = np.array(["astrolupton", "astroluptonhc", "zscore"])
-            norm = np.random.choice(scalings, 1)[0]
-            if norm == "zscore":
-                dtype = np.int16
-            else:
-                dtype = np.uint8
-            image = toolkit.read_image_hsc(
-                filenames,
-                normalize=norm,
-                ceil_percentile=self.ria["ceil_percentile"],
-                dtype=dtype,
-                A=self.ria["A"],
-                stretch=self.ria["stretch"],
-                Q=self.ria["Q"],
-                do_norm=self.ria["do_norm"],
-            )
-
-        augs = T.AugmentationList(
-            [
-                T.CropTransform(
-                    image.shape[1] // 4, image.shape[0] // 4, image.shape[1] // 2, image.shape[0] // 2
-                )
-            ]
-        )
-
-        # Data Augmentation
-        auginput = T.AugInput(image)
-        # Transformations to model shapes
-        transform = augs(auginput)
-        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-        ]
-
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
-        instances = utils.filter_empty_instances(instances)
-
-        return {
-            # create the format that the model expects
-            "image": image,
-            "image_shaped": auginput.image,
-            "height": image.shape[1],
-            "width": image.shape[2],
-            "image_id": dataset_dict["image_id"],
-            "instances": instances,
-        }
 
 
 def main(tl, dataset_names, train_head, args):
@@ -496,7 +265,7 @@ def main(tl, dataset_names, train_head, args):
         # hookList = [schedulerHook,saveHook]
 
         # print(cfg.train.init_checkpoint)
-        trainer = LazyAstroTrainer(model, loader, optimizer, cfg, cfg_loader)
+        trainer = LazyAstroTrainer(model, loader, optimizer, cfg)
         trainer.register_hooks(hookList)
         trainer.set_period(int(epoch / 2))  # print loss every n iterations
         trainer.train(0, e1)
@@ -574,7 +343,7 @@ def main(tl, dataset_names, train_head, args):
         hookList = [lossHook, schedulerHook, saveHook]
         # hookList = [schedulerHook,saveHook]
 
-        trainer = LazyAstroTrainer(model, loader, optimizer, cfg, cfg_loader)
+        trainer = LazyAstroTrainer(model, loader, optimizer, cfg)
         trainer.register_hooks(hookList)
         # trainer.set_period(int(epoch/2)) # print loss every n iterations
         # trainer.train(0,efinal)
