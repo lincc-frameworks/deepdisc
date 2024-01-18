@@ -99,6 +99,7 @@ from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
 from torch.nn.parallel import DistributedDataParallel
 
+from deepdisc.astrodet import detectron as detectron_addons
 
 def set_mpl_style():
     """Function to set MPL style"""
