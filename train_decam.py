@@ -29,7 +29,7 @@ import deepdisc.astrodet.astrodet as toolkit
 from deepdisc.astrodet import detectron as detectron_addons
 
 # Prettify the plotting
-from astrodet.astrodet import set_mpl_style
+from deepdisc.astrodet.astrodet import set_mpl_style
 
 # Custom Aug classes have been added to detectron source files
 
