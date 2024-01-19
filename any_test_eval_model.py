@@ -11,8 +11,9 @@ import deepdisc.astrodet.astrodet as toolkit
 
 from deepdisc.data_format.file_io import get_data_from_json
 from deepdisc.data_format.image_readers import HSCImageReader, DC2ImageReader
-from deepdisc.inference.match_objects import get_matched_object_classes
+from deepdisc.inference.match_objects import get_matched_object_classes, get_matched_z_pdfs
 from deepdisc.inference.predictors import return_predictor_transformer
+from deepdisc.model.models import RedshiftPDFCasROIHeads
 from deepdisc.utils.parse_arguments import dtype_from_args, make_inference_arg_parser
 
 from detectron2 import model_zoo
@@ -97,7 +98,9 @@ if __name__ == "__main__":
     cfg = LazyConfig.load(cfgfile)
     
     # --------- Setting a bunch of config stuff
-    cfg.model.roi_heads.num_classes = args.nc #here, maybe, depending on nc for dc2
+    cfg.OUTPUT_DIR = output_dir
+    
+    cfg.model.roi_heads.num_classes = args.nc
 
     for bp in cfg.model.roi_heads.box_predictors:
         bp.test_score_thresh = roi_thresh
@@ -112,13 +115,18 @@ if __name__ == "__main__":
         cfg.model.backbone.bottom_up.in_chans = 6
         cfg.model.pixel_mean = [0.05381286, 0.04986344, 0.07526361, 0.10420945, 0.14229655, 0.21245764]
         cfg.model.pixel_std = [2.9318833, 1.8443471, 2.581817, 3.5950038, 4.5809164, 7.302009]
-        # cfg.model.roi_heads.num_components=5
-        # cfg.model.roi_heads._target_ = RedshiftPDFCasROIHeads
+        
+        if args.use_redshift:
+            cfg.model.roi_heads.num_components=5
+            cfg.model.roi_heads._target_ = RedshiftPDFCasROIHeads
+            #cfg.zloss_factor = 1.0
+            #cfg.model.zloss_factor = 1.0
+            cfg.model.roi_heads.zloss_factor = 1.0 #! what's a reasonable default?
     
         #! this maybe shouldn't have been a config value? or should we make a sep config for dc2?
         cfg.classes = ["object"] 
         
-    # --------- Now we case predictor on model type (the second case has way different config vals it appears)
+    # --------- Now we case predictor on model type, and if using dc2 data
     
     cfg.OUTPUT_DIR = output_dir
     if args.use_dc2:
@@ -128,6 +136,7 @@ if __name__ == "__main__":
         else:
             cfgfile = "./tests/deepdisc/test_data/configs/solo/solo_test_eval_model_option.py"
             predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=1, roi_thresh=roi_thresh)
+            #! nc should be in config, along with making sep config for dc2
     else:
         if bb in ['Swin','MViTv2']:
             predictor= return_predictor_transformer(cfg)
@@ -157,6 +166,10 @@ if __name__ == "__main__":
     print("Matching objects")
     if args.use_dc2:
         true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, dc2_key_mapper, predictor)
+        if args.use_redshift:
+            true_zs, pred_pdfs, matched_ids = get_matched_z_pdfs(dataset_dicts["test"], IR, dc2_key_mapper, predictor)
+            print(true_zs)
+            print(f"{str(pred_pdfs)[:1000]}...")
     else:
         true_classes, pred_classes = get_matched_object_classes(dataset_dicts["test"], IR, hsc_key_mapper, predictor)
     classes = np.array([true_classes, pred_classes])
