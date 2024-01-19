@@ -15,7 +15,7 @@ def make_inference_arg_parser():
         The argument parser.
     """
     parser = argparse.ArgumentParser()
-
+    
     parser.add_argument("--datatype", default=8, type=int)
     parser.add_argument("--nc", default=2, type=int)
     parser.add_argument("--norm", default="raw", type=str, help="contrast scaling")
@@ -42,6 +42,9 @@ def make_inference_arg_parser():
         "https://pytorch.org/docs/stable/distributed.html for details.",
     )
     
+    # To differentiate the kind of run 
+    parser.add_argument("--use-dc2", default=False, action="store_true")
+    parser.add_argument("--use-redshift", default=False, action="store_true")
     
     return parser
 
