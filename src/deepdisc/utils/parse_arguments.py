@@ -15,7 +15,7 @@ def make_inference_arg_parser():
         The argument parser.
     """
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument("--datatype", default=8, type=int)
     parser.add_argument("--nc", default=2, type=int)
     parser.add_argument("--norm", default="raw", type=str, help="contrast scaling")
