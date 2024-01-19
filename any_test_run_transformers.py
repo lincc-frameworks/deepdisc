@@ -73,6 +73,8 @@ def main(train_head, args):
 
     # Load the config
     cfg = LazyConfig.load(cfgfile)
+    for key in cfg.get("MISC", dict()).keys():
+        cfg[key] = cfg.MISC[key]
 
     # Register the data sets
     astrotrain_metadata = register_data_set(
