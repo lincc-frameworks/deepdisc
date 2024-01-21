@@ -14,7 +14,7 @@ from deepdisc.model.models import RedshiftPDFCasROIHeads
 # ---------------------------------------------------------------------------- #
 
 classes = ["object"]
-roi_thresh = 1.0 #! check default
+roi_thresh = 0.1 #! check default
 
 # ---------------------------------------------------------------------------- #
 # Standard, Lazy-Config-style config values

@@ -13,7 +13,7 @@ from omegaconf import OmegaConf
 # ---------------------------------------------------------------------------- #
 
 classes = ["star", "galaxy"]
-roi_thresh = 1.0 #! check default
+roi_thresh = 0.1 #! check default
 
 # ---------------------------------------------------------------------------- #
 # Standard, Lazy-Config-style config values
