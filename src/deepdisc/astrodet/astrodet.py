@@ -99,6 +99,7 @@ from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
 from torch.nn.parallel import DistributedDataParallel
 
+from deepdisc.astrodet import detectron as detectron_addons
 
 def set_mpl_style():
     """Function to set MPL style"""
@@ -1613,3 +1614,198 @@ def get_astro_dicts(img_dir):
         dataset_dicts.append(record)
 
     return dataset_dicts
+
+
+class train_mapper_cls:
+    """
+    This class is used to load in and augment data during training.
+    It is initialized and then called during training where it augments images and returns them along with annotations
+
+    Parameters
+    ----------
+    read_image_args: keyword args
+
+    These are the necessary arguments for the read_image_hsc function
+
+    """
+
+    def __init__(self, **read_image_args):
+        self.ria = read_image_args
+
+    def __call__(self, dataset_dict):
+        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
+        if self.ria["sim"]:
+            image = read_image_decam(
+                dataset_dict["file_name"],
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+        else:
+            filenames = [
+                dataset_dict["filename_G"], 
+                dataset_dict["filename_R"], 
+                dataset_dict["filename_I"]
+            ]
+            image = read_image_hsc(
+                filenames,
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+        """
+        augs = T.AugmentationList([
+            T.RandomRotation([-90, 90, 180], sample_style='choice'),
+            T.RandomFlip(prob=0.5),
+            T.RandomFlip(prob=0.5,horizontal=False,vertical=True),
+            T.Resize((512,512))
+            
+        ])
+        """
+
+        if self.ria["sim"]:
+            augs = detectron_addons.KRandomAugmentationList(
+                [
+                    # my custom augs
+                    T.RandomRotation([-90, 90, 180], sample_style="choice"),
+                    T.RandomFlip(prob=0.5),
+                    T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+                    detectron_addons.CustomAug(gaussblur, prob=1.0),
+                    detectron_addons.CustomAug(addelementwise, prob=1.0)
+                    # CustomAug(white),
+                ],
+                k=-1,
+            )
+        else:
+            augs = detectron_addons.KRandomAugmentationList(
+                [
+                    # my custom augs
+                    T.RandomRotation([-90, 90, 180], sample_style="choice"),
+                    T.RandomFlip(prob=0.5),
+                    T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+                    # detectron_addons.CustomAug(gaussblur,prob=1.0),
+                    # detectron_addons.CustomAug(addelementwise,prob=1.0)
+                    # CustomAug(white),
+                ],
+                k=-1,
+                # cropaug=T.RandomCrop('relative',(0.5,0.5))
+                cropaug=_transform_to_aug(
+                    T.CropTransform(
+                        image.shape[1] // 4, image.shape[0] // 4, image.shape[1] // 2, image.shape[0] // 2
+                    )
+                ),
+                # cropaug=None
+            )
+        
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+
+        annos = [
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            for annotation in dataset_dict.pop("annotations")
+        ]
+
+        instances = utils.annotations_to_instances(annos, image.shape[1:])
+        instances = utils.filter_empty_instances(instances)
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1], #512,
+            "width": image.shape[2], #512,
+            "image_id": dataset_dict["image_id"],
+            "instances": instances,
+        }
+
+class test_mapper_cls:
+
+    """
+    This class is used to load in and augment data during validation.
+    It is initialized and then called during validation where it augments images and returns them along with annotations
+
+    Parameters
+    ----------
+    read_image_args: keyword args
+
+    These are the necessary arguments for the read_image_hsc function
+
+    """
+
+    def __init__(self, **read_image_args):
+        self.ria = read_image_args
+
+    def __call__(self, dataset_dict):
+        dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
+        if self.ria["sim"]:
+            image = read_image_decam(
+                dataset_dict["file_name"],
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+        else:
+            filenames = [
+                dataset_dict["filename_G"], 
+                dataset_dict["filename_R"], 
+                dataset_dict["filename_I"]
+            ]
+            image = read_image_hsc(
+                filenames,
+                normalize=self.ria["normalize"],
+                ceil_percentile=self.ria["ceil_percentile"],
+                dtype=self.ria["dtype"],
+                A=self.ria["A"],
+                stretch=self.ria["stretch"],
+                Q=self.ria["Q"],
+                do_norm=self.ria["do_norm"],
+            )
+
+        if self.ria["sim"]:
+            augs = T.AugmentationList([])
+        else:
+            augs = T.AugmentationList(
+                [
+                    T.CropTransform(
+                        image.shape[1] // 4, image.shape[0] // 4, image.shape[1] // 2, image.shape[0] // 2
+                    )
+                ]
+            )
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+        annos = [
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            for annotation in dataset_dict.pop("annotations")
+        ]
+        instances = utils.annotations_to_instances(annos, image.shape[1:])
+        instances = utils.filter_empty_instances(instances)
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1], #512,
+            "width": image.shape[2], #512,
+            "image_id": dataset_dict["image_id"],
+            "instances": instances,
+        }

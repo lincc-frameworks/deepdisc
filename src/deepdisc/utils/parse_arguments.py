@@ -42,6 +42,9 @@ def make_inference_arg_parser():
         "https://pytorch.org/docs/stable/distributed.html for details.",
     )
     
+    # To differentiate the kind of run 
+    parser.add_argument("--use-dc2", default=False, action="store_true")
+    parser.add_argument("--use-redshift", default=False, action="store_true")
     
     return parser
 
@@ -106,6 +109,10 @@ Run on multiple machines:
         "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
     )
     run_args.add_argument("--run-name", type=str, default="Swin_test", help="output name for run")
+    
+    # To differentiate the kind of run 
+    run_args.add_argument("--use-dc2", default=False, action="store_true")
+    run_args.add_argument("--use-redshift", default=False, action="store_true")
 
     # Add arguments for the machine specifications
     machine_args = parser.add_argument_group("Machine arguments")
