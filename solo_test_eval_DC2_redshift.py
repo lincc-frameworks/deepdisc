@@ -29,6 +29,7 @@ from detectron2.engine import launch
 setup_logger()
 logger = logging.getLogger(__name__)
 import torch.distributed as dist
+import torch.multiprocessing as mp
 
 # Inference should use the config with parameters that are used in training
 # cfg now already contains everything we've set previously. We changed it a little bit for inference:
@@ -53,7 +54,7 @@ def gather_predictions(array, array_list=None, root=0, group=None):
 
 
 
-def main(args):
+def main(q,args):
     size = args.num_gpus * args.num_machines
     
     # --------- Handle args
@@ -96,17 +97,17 @@ def main(args):
         predictor, cfg = return_predictor(cfgfile, run_name, output_dir=output_dir, nc=2, roi_thresh=roi_thresh)
 
     # --------- 
-    def dc2_key_mapper(dataset_dict):
-        filename = dataset_dict["filename"]
-        return filename
-
-    
     #def dc2_key_mapper(dataset_dict):
     #    filename = dataset_dict["filename"]
-    #    base = filename.split(".")[0].split("/")[-1]
-    #    dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
-    #    fn = os.path.join(dirpath, base) + ".npy"
-    #    return fn
+    #    return filename
+
+    
+    def dc2_key_mapper(dataset_dict):
+        filename = dataset_dict["filename"]
+        base = filename.split(".")[0].split("/")[-1]
+        dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+        fn = os.path.join(dirpath, base) + ".npy"
+        return fn
     
     IR = DC2ImageReader()
     
@@ -131,6 +132,8 @@ def main(args):
     
     
     true_zs, pred_pdfs, ids = run_batched_match_redshift(loader, predictor, ids=True)
+    
+    print(len(true_zs))
         
     if size==1:
         np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_pdfs)
@@ -159,11 +162,11 @@ def main(args):
     
         if dist.get_rank() == 0:
             #pred_zlist = np.concatenate([pred_list for pred_list in pred_zlist])
-            np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
-            np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
-            np.save(os.path.join(args.savedir,'ids.npy'),id_list)
+            #np.save(os.path.join(args.savedir,'predicted_pdfs.npy'),pred_zlist)
+            #np.save(os.path.join(args.savedir,'true_zs.npy'),true_zlist)
+            #np.save(os.path.join(args.savedir,'ids.npy'),id_list)
+            q.put(pred_zlist)
 
-        return
     
 
 if __name__ == "__main__":
@@ -171,6 +174,9 @@ if __name__ == "__main__":
     
     print('Inference')
     train_head = True
+    
+    q = mp.Queue()
+    
     t0 = time.time()
     launch(
         main,
@@ -179,9 +185,12 @@ if __name__ == "__main__":
         machine_rank=args.machine_rank,
         dist_url=args.dist_url,
         args=(
+            q,
             args,
         ),
     )
+    
+    print(q.get())
 
 
     print(f"Took {time.time()-t0} seconds")
