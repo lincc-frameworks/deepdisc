@@ -118,7 +118,7 @@ def get_matched_object_classes_new(dataset_dicts, predictor):
     return true_classes, pred_classes
 
 
-def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor, ids=False):
+def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor, ids=False, blendedness=False):
     """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
 
     Parameters
@@ -146,6 +146,7 @@ def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor, ids=False
     ztrues = []
     zpreds = []
     matched_ids=[]
+    matched_bnds=[]
 
     for d in dataset_dicts:
         outputs = get_predictions(d, imreader, key_mapper, predictor)
@@ -157,14 +158,17 @@ def get_matched_z_pdfs(dataset_dicts, imreader, key_mapper, predictor, ids=False
             if ids:
                 oid = d["annotations"][int(gti)]["obj_id"]
                 matched_ids.append(oid)
+            if blendedness:
+                bnd = d["annotations"][int(gti)]["blendedness"]
+                matched_bnds.append(bnd)
 
             ztrues.append(ztrue)
             zpreds.append(pdf)
 
-    return ztrues, zpreds, matched_ids
+    return ztrues, zpreds, matched_ids, matched_bnds
 
 
-def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False):
+def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False, blendedness=False):
     """Returns redshift pdfs for matched pairs of ground truth and detected objects test images
     assuming the dataset_dicts have the image HxWxC in the 'image_shaped' field
 
@@ -188,6 +192,7 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False):
     ztrues = []
     zpreds = []
     matched_ids=[]
+    matched_bnds=[]
 
     for d in dataset_dicts:
         outputs = get_predictions_new(d, predictor)
@@ -199,11 +204,15 @@ def get_matched_z_pdfs_new(dataset_dicts, predictor, ids=False):
             if ids:
                 oid = d["annotations"][int(gti)]["obj_id"]
                 matched_ids.append(oid)
+            if blendedness:
+                bnd = d["annotations"][int(gti)]["blendedness"]
+                matched_bnds.append(bnd)
+
 
             ztrues.append(ztrue)
             zpreds.append(pdf)
 
-    return ztrues, zpreds, matched_ids
+    return ztrues, zpreds, matched_ids, matched_bnds
 
 
 def get_matched_z_points_new(dataset_dicts, predictor):
