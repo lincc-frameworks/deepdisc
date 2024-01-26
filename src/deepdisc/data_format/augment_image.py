@@ -155,7 +155,10 @@ def dc2_train_augs(image):
     return augs
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 243c38271ae8940d578e242148e35c2c2fbfc411
 def hsc_test_augs(image):
     """Get the augmentation list
 

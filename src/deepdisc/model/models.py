@@ -248,7 +248,6 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
         self.num_components = num_components
         self.zloss_factor = zloss_factor
 
-
         self.redshift_conv = nn.Sequential(
             nn.Conv2d(in_channels, 512, stride=1, kernel_size=3),
             nn.ReLU(),
@@ -260,6 +259,7 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
             nn.Linear(1024, 64),
             nn.Tanh(),
             nn.Linear(64, num_components * 3),
+
         )
 
     def output_pdf(self, inputs):
@@ -289,6 +289,7 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
         #features = nn.Flatten()(features)
         #ebvs = cat([x.gt_ebv for x in instances])
         #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
+
         
         num_instances_per_img = [len(i) for i in instances]
 
@@ -516,6 +517,7 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
     # def __init__(self, cfg, input_shape):
     def __init__(
         self,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -549,6 +551,8 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
         # The input dim should follow from the classification head
         self._output_size = (inshape.channels, inshape.height, inshape.width)
 
+        self.zloss_factor = zloss_factor
+        
         # self.redshift_fc = nn.Linear(int(np.prod(self._output_size)), 1)
 
         self.redshift_fc = nn.Sequential(
@@ -590,7 +594,7 @@ class RedshiftPointCasROIHeads(CascadeROIHeads):
 
             gt_redshifts = cat([x.gt_redshift for x in instances])
 
-            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * 0.1
+            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * self.zloss_factor
             # $diff = prediction - gt_redshifts
 
             return {"redshift_loss": torch.square(diff).mean()}
@@ -625,6 +629,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
 
     def __init__(
         self,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -660,6 +665,8 @@ class RedshiftPointROIHeads(StandardROIHeads):
             sampling_ratio=0,
             pooler_type="ROIAlignV2",
         )
+        
+        slef.zloss_factor = zloss_factor
 
         in_channels = 256
         inshape = ShapeSpec(channels=in_channels, height=7, width=7)
@@ -695,7 +702,7 @@ class RedshiftPointROIHeads(StandardROIHeads):
             gt_classes = cat([x.gt_classes for x in instances])
             fg_inds = nonzero_tuple((gt_classes >= 0) & (gt_classes < self.num_classes))[0]
             gt_redshifts = cat([x.gt_redshift for x in instances])
-            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * 0.1
+            diff = (prediction[fg_inds] - gt_redshifts[fg_inds]) * self.zloss_factor
             # diff = prediction - cat([x.gt_redshift for x in instances])
             return {"redshift_loss": torch.square(diff).mean()}
         else:
@@ -750,6 +757,7 @@ class RedshiftPDFROIHeads(StandardROIHeads):
     def __init__(
         self,
         num_components: int,
+        zloss_factor: float,
         *,
         box_in_features: List[str],
         box_pooler: ROIPooler,
@@ -786,6 +794,8 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             pooler_type="ROIAlignV2",
         )
 
+        self.zloss_factor = zloss_factor
+        
         in_channels = 256
         inshape = ShapeSpec(channels=in_channels, height=7, width=7)
 
@@ -836,7 +846,7 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             gt_redshifts = cat([x.gt_redshift for x in instances])
             nlls_fg = -pdfs_fg.log_prob(gt_redshifts[fg_inds])
 
-            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * 0.1
+            nlls = -pdfs.log_prob(gt_redshifts)[fg_inds] * self.zloss_factor
             return {"redshift_loss": torch.mean(nlls)}
 
         else:
@@ -893,3 +903,5 @@ class RedshiftPDFROIHeads(StandardROIHeads):
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
             pred_instances = self._forward_redshift(features, pred_instances)
             return pred_instances, {}
+
+        
