@@ -49,6 +49,43 @@ def get_matched_object_inds(dataset_dict, outputs):
     return matched_gts, matched_dts
 
 
+
+def get_object_coords(dataset_dict, outputs):
+    """Returns indices for matched pairs of ground truth and detected objects in an image
+
+    Parameters
+    ----------
+    dataset_dict : dictionary
+        The dictionary metadata containing the wcs for a single image
+
+    Returns
+    -------
+        matched_gts: list(int)
+            The indices of matched objects in the ground truth list
+        matched_dts: list(int)
+            The indices of matched objects in the detections list
+        outputs: list(Intances)
+            The list of detected object Instances
+    """
+
+    
+    pred_boxes = outputs["instances"].pred_boxes
+    pred_boxes = pred_boxes.to("cpu")
+    
+    
+    '''
+    psuedo-code
+    
+    xy,ys = pred_boxes[0], pred_boxes[1]
+    
+    ras,decs = wcs.pixel_to_world(xs,ys)
+    
+    
+    '''
+
+    return ras, decs
+
+
 def get_matched_object_classes(dataset_dicts, imreader, key_mapper, predictor):
     """Returns object classes for matched pairs of ground truth and detected objects in an image
 
@@ -274,7 +311,7 @@ def run_batched_match_class(dataloader, predictor):
     return true_classes, pred_classes
 
 
-def run_batched_match_redshift(dataloader, predictor, ids=False):
+def run_batched_match_redshift(dataloader, predictor, ids=False, blendedness=False):
     """
     Test function not yet implemented for batch prediction
 
@@ -282,6 +319,8 @@ def run_batched_match_redshift(dataloader, predictor, ids=False):
     ztrues = []
     zpreds = []
     matched_ids = []
+    matched_bnds = []
+
     with torch.no_grad():
         for i, dataset_dicts in enumerate(dataloader):
             batched_outputs = predictor.model(dataset_dicts)
@@ -295,9 +334,12 @@ def run_batched_match_redshift(dataloader, predictor, ids=False):
                     if ids:
                         oid = d["annotations"][int(gti)]["obj_id"]
                         matched_ids.append(oid)
+                    if blendedness:
+                        bnd = d["annotations"][int(gti)]["blendedness"]
+                        matched_bnds.append(bnd)
 
 
-    return ztrues, zpreds, matched_ids
+    return ztrues, zpreds, matched_ids, matched_bnds
 
 
 

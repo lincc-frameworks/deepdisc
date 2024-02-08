@@ -5,6 +5,31 @@ import imgaug.augmenters as iaa
 import numpy as np
 
 import deepdisc.astrodet.detectron as detectron_addons
+import random
+
+
+
+LAMBDA_EFFS = [3671,4827,6223,7546,8691,9712]
+A_EBV = np.array([4.81,3.64,2.70,2.06,1.58,1.31])
+
+
+
+def redden(image, rng_seed=None):
+    """
+    Parameters
+    ----------
+    image: ndarray
+    rng_seed : np.random.Generator
+        Random state that is seeded. if none, use machine entropy.
+
+    Returns
+    -------
+    augmented image
+
+    """
+    new_ebv = np.random.uniform(0, 0.5)
+    image = np.float32(image*(10.**(-A_EBV*new_ebv/2.5)))
+    return image
 
 
 def gaussblur(image, rng_seed=None):
@@ -22,9 +47,39 @@ def gaussblur(image, rng_seed=None):
     """
     if rng_seed is None:
         rng_seed = np.random.default_rng()
-    aug = iaa.GaussianBlur(sigma=(0.0, rng_seed.random() * 4 + 2), seed=rng_seed)
+    aug = iaa.GaussianBlur(sigma=10, seed=rng_seed)
     return aug.augment_image(image)
 
+
+def scale_psf(sigi, lambda_eff):
+    i_eff = 7546
+    sig_lambda = sigi* (lambda_eff)**(-0.3)/(i_eff**(-0.3))
+    return sig_lambda
+
+
+def multiband_gaussblur(image, rng_seed=None):
+    """
+    Parameters
+    ----------
+    image: ndarray
+    rng_seed : np.random.Generator
+        Random state that is seeded. if none, use machine entropy.
+
+    Returns
+    -------
+    augmented image
+
+    """
+    if rng_seed is None:
+        rng_seed = np.random.default_rng()
+    imgs = np.zeros(image.shape, dtype=np.float32)
+    sigmai = random.random()
+    for i in range(6):
+        sigma = scale_psf(sigmai,LAMBDA_EFFS[i])
+        aug = iaa.GaussianBlur(sigma=sigma, seed=rng_seed)
+        imaug = aug.augment_image(image[:,:,i])
+        imgs[:,:,i] = imaug
+    return imgs
 
 def addelementwise16(image, rng_seed=None):
     """
@@ -148,6 +203,9 @@ def dc2_train_augs(image):
             T.RandomRotation([-90, 90, 180], sample_style="choice"),
             T.RandomFlip(prob=0.5),
             T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+            #detectron_addons.CustomAug(multiband_gaussblur,prob=1.0),
+            #detectron_addons.CustomAug(redden,prob=1.0),
+
         ],
         k=-1,
         cropaug=None,

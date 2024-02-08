@@ -58,8 +58,8 @@ def main(train_head, args):
     dtype = dtype_from_args(args.dtype)
 
     # Get file locations
-    trainfile = dirpath + "single_test.json"
-    testfile = dirpath + "single_test.json"
+    trainfile = dirpath + "train_scarlet_public.json"
+    testfile = dirpath + "test_scarlet_public.json"
     if args.use_dc2:
         if modname == "swin":
             cfgfile = "./tests/deepdisc/test_data/configs/solo/solo_cascade_mask_rcnn_swin_b_in21k_50ep_DC2.py"
@@ -116,7 +116,10 @@ def main(train_head, args):
             # key_mapper function should take a dataset_dict as input and output a key used by the image_reader function
             def dc2_key_mapper(dataset_dict):
                 filename = dataset_dict["filename"]
-                return filename
+                base = filename.split(".")[0].split("/")[-1]
+                dirpath = "/home/g4merz/DC2/nersc_data/scarlet_data"
+                fn = os.path.join(dirpath, base) + ".npy"
+                return fn
             if args.use_redshift:
                 IR = DC2ImageReader()
                 mapper = RedshiftDictMapper(IR, dc2_key_mapper, train_augs).map_data

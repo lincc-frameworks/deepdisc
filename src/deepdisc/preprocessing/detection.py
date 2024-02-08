@@ -202,6 +202,7 @@ def run_scarlet(
     savefigs=False,
     figpath="",
     weights=None,
+    return_models=True
 ):
     """Run P. Melchior's scarlet (https://github.com/pmelchior/scarlet) implementation
     for source separation. This function will create diagnostic plots, a source detection catalog,
@@ -389,32 +390,37 @@ def run_scarlet(
         # Compute in bbox only
         model = src.bbox.extract_from(model)
         bkgmod = sep.Background(np.sum(model, axis=0))
-
+        
         # Run sep
-        try:
-            cat, _ = make_catalog(
-                model,
-                lvl_segmask,
-                wave=False,
-                segmentation_map=False,
-                maskthresh=maskthresh,
-            )
-        except:
-            print(f"Exception with source {k}")
-            cat = []
-        # if segmentation_map == True:
-        #    cat, mask = cat
-        # If more than 1 source is detected for some reason (e.g. artifacts)
-        if len(cat) > 1:
-            # keep the brightest
-            idx = np.argmax([c["cflux"] for c in cat])
-            cat = cat[idx]
-        #    if segmentation_map == True:
-        #        mask = mask[idx]
-        # If failed to detect model source
-        if len(cat) == 0:
-            # Fill with nan
-            cat = [np.full(model.shape, np.nan, dtype=model.dtype)]
+        if return_models:
+            try:
+                cat, _ = make_catalog(
+                    model,
+                    lvl_segmask,
+                    wave=False,
+                    segmentation_map=False,
+                    maskthresh=maskthresh,
+                )
+            except:
+                print(f"Exception with source {k}")
+                cat = []
+            # if segmentation_map == True:
+            #    cat, mask = cat
+            # If more than 1 source is detected for some reason (e.g. artifacts)
+            if len(cat) > 1:
+                # keep the brightest
+                idx = np.argmax([c["cflux"] for c in cat])
+                cat = cat[idx]
+            #    if segmentation_map == True:
+            #        mask = mask[idx]
+            # If failed to detect model source
+            if len(cat) == 0:
+                # Fill with nan
+                cat = [np.full(model.shape, np.nan, dtype=model.dtype)]
+            
+            catalog_deblended.append(cat)
+
+            
         # Append to full catalog
         if segmentation_map == True:
             # For some reason sep doesn't like these images, so do the segmask ourselves for now
@@ -424,7 +430,7 @@ def run_scarlet(
             segmentation_masks.append(mask)
             # plt.imshow(mask)
             # plt.show()
-        catalog_deblended.append(cat)
+        
 
     # Plot scene: rendered model, observations, and residuals
     if plot_scene == True:
@@ -459,14 +465,24 @@ def run_scarlet(
             plt.savefig(figpath + "sources.png")
         plt.show()
 
-    return (
+        
+    if return_models:
+        return (
         observation,
         starlet_sources,
         model_frame,
         catalog,
-        catalog_deblended,
         segmentation_masks,
-    )
+        )
+    else:
+        return (
+            observation,
+            starlet_sources,
+            model_frame,
+            catalog,
+            #catalog_deblended,
+            segmentation_masks,
+        )
 
 
 

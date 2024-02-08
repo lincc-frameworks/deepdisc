@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from astropy.io import fits
 from detectron2.structures import BoxMode
+import os 
 
 FILT_INX = 0
 
@@ -35,12 +36,13 @@ def annotate_dc2(images, mask, idx, filters):
         obj_ids = [hdu.header["objid"] for hdu in hdul]
         mag_is = [hdu.header["mag_i"] for hdu in hdul]
 
-    tract = int(images[FILT_INX].split("_")[1])
+    bn = os.path.basename(images[FILT_INX])
+    tract = int(bn.split("_")[0])
     patch = (
-        int(images[FILT_INX].split("_")[2].split("_")[0][0]),
-        int(images[FILT_INX].split("_")[2].split("_")[0][-1]),
+        int(bn.split("_")[2].split("_")[1][0]),
+        int(bn.split("_")[2].split("_")[1][-1]),
     )
-    sp = int(images[FILT_INX].split("_")[3])
+    sp = int(bn.split("_")[2])
     record[f"filename"] = f"/home/g4merz/DC2/nersc_data/data/{tract}_{patch[0]},{patch[1]}_{sp}_images.npy"
     record["image_id"] = idx
     record["height"] = height
