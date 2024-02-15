@@ -92,6 +92,64 @@ class DictMapper(DataMapper):
             "instances": instances,
         }
 
+    
+class MagRedshiftDictMapper(DataMapper):
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def map_data(self, dataset_dict):
+        """Map COCO dict data to the correct format, add ground truth redhshift
+
+        Parameters
+        ----------
+        dataset_dict: dict
+            a dictionary of COCO formatted metadata
+
+        Returns
+        -------
+        reformatted dictionary including image and instances+redshift
+        """
+
+        dataset_dict = copy.deepcopy(dataset_dict)
+        key = self.km(dataset_dict)
+        image = self.IR(key)
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        if self.augmentations is not None:
+            augs = self.augmentations(image)
+        else:
+            augs = T.AugmentationList([])
+
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+
+        annos = [
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            for annotation in dataset_dict.pop("annotations")
+            if annotation["redshift"] != 0.0 and annotation["mag_i"] < 25.3
+        ]
+
+        instances = utils.annotations_to_instances(annos, image.shape[1:])
+
+        instances.gt_magi = torch.tensor([a["mag_i"] for a in annos])
+        instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+
+        instances = utils.filter_empty_instances(instances)
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1],
+            "width": image.shape[2],
+            "image_id": dataset_dict["image_id"],
+            "instances": instances,
+            "annotations": annos
+        }
+    
 
 class RedshiftDictMapper(DataMapper):
     def __init__(self, *args, **kwargs):
@@ -146,8 +204,66 @@ class RedshiftDictMapper(DataMapper):
             "width": image.shape[2],
             "image_id": dataset_dict["image_id"],
             "instances": instances,
+            "annotations": annos
         }
     
+    
+class GoldRedshiftDictMapper(DataMapper):
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def map_data(self, dataset_dict):
+        """Map COCO dict data to the correct format, add ground truth redhshift
+
+        Parameters
+        ----------
+        dataset_dict: dict
+            a dictionary of COCO formatted metadata
+
+        Returns
+        -------
+        reformatted dictionary including image and instances+redshift
+        """
+
+        dataset_dict = copy.deepcopy(dataset_dict)
+        key = self.km(dataset_dict)
+        image = self.IR(key)
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        if self.augmentations is not None:
+            augs = self.augmentations(image)
+        else:
+            augs = T.AugmentationList([])
+
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+
+        annos = [
+            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+            for annotation in dataset_dict.pop("annotations")
+            if annotation["redshift"] != 0.0 and annotation["mag_i"] < 25.3
+        ]
+
+        instances = utils.annotations_to_instances(annos, image.shape[1:])
+
+        instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+
+        instances = utils.filter_empty_instances(instances)
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1],
+            "width": image.shape[2],
+            "image_id": dataset_dict["image_id"],
+            "instances": instances,
+            "annotations": annos
+        }
+
     
 class RedshiftEBVDictMapper(DataMapper):
     def __init__(self, *args, **kwargs):
@@ -206,6 +322,68 @@ class RedshiftEBVDictMapper(DataMapper):
             #"annotations": annos
         }
     
+    
+class GoldRedshiftDictMapperEval(DataMapper):
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def map_data(self, dataset_dict):
+        """Map COCO dict data to the correct format, add ground truth redhshift
+
+        Parameters
+        ----------
+        dataset_dict: dict
+            a dictionary of COCO formatted metadata
+
+        Returns
+        -------
+        reformatted dictionary including image and instances+redshift
+        """
+
+        dataset_dict = copy.deepcopy(dataset_dict)
+        key = self.km(dataset_dict)
+        image = self.IR(key)
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        if self.augmentations is not None:
+            augs = self.augmentations(image)
+        else:
+            augs = T.AugmentationList([])
+
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+
+        annotations = [annotation for annotation in dataset_dict["annotations"]
+                       if annotation["redshift"] != 0.0 and annotation["mag_i"] < 25.3]
+        
+        #annos = [
+        #    utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
+        #    for annotation in dataset_dict.pop("annotations")
+        #    if annotation["redshift"] != 0.0
+        #]
+
+        #instances = utils.annotations_to_instances(annos, image.shape[1:])
+
+        #instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+
+        #instances = utils.filter_empty_instances(instances)
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1],
+            "width": image.shape[2],
+            "image_id": dataset_dict["image_id"],
+            #"instances": instances,
+            "annotations": annotations
+        }
+
+
+
     
 class RedshiftDictMapperEval(DataMapper):
     def __init__(self, *args, **kwargs):
@@ -240,7 +418,8 @@ class RedshiftDictMapperEval(DataMapper):
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
 
-        annotations = [annotation for annotation in dataset_dict["annotations"] if annotation["redshift"] != 0.0]
+        annotations = [annotation for annotation in dataset_dict["annotations"]
+                       if annotation["redshift"] != 0.0]
         
         #annos = [
         #    utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
@@ -265,6 +444,51 @@ class RedshiftDictMapperEval(DataMapper):
             "annotations": annotations
         }
 
+
+class WCSDictmapper(DataMapper):
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def map_data(self, dataset_dict):
+        """Map COCO dict data to the correct format, add ground truth redhshift
+
+        Parameters
+        ----------
+        dataset_dict: dict
+            a dictionary of COCO formatted metadata
+
+        Returns
+        -------
+        reformatted dictionary including image and instances+redshift
+        """
+
+        dataset_dict = copy.deepcopy(dataset_dict)
+        key = self.km(dataset_dict)
+        image = self.IR(key)
+
+        # Data Augmentation
+        auginput = T.AugInput(image)
+        # Transformations to model shapes
+        if self.augmentations is not None:
+            augs = self.augmentations(image)
+        else:
+            augs = T.AugmentationList([])
+
+        transform = augs(auginput)
+        image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+
+
+        return {
+            # create the format that the model expects
+            "image": image,
+            "image_shaped": auginput.image,
+            "height": image.shape[1],
+            "width": image.shape[2],
+            #"image_id": dataset_dict["image_id"],
+            #"instances": instances,
+            "wcs": dataset_dict['wcs']
+        }
 
     
     
@@ -326,77 +550,6 @@ class RedshiftEBVDictMapper(DataMapper):
         }
 
     
-
-class RedshiftFlatDictMapper(DataMapper):
-    def __init__(self, *args, **kwargs):
-        # Pass arguments to the parent function.
-        super().__init__(*args, **kwargs)
-
-    def map_data(self, row):
-        """Map flattened tabular data to the correct format
-
-        Parameters
-        ----------
-        row: np.array
-            A row from a flattened array of data
-
-        Returns
-        -------
-        reformatted dictionary including image and instances+redshift (no segmask)
-        """
-
-        image = row[0:98304].reshape(6, 128, 128).astype(np.float32)
-
-        dataset_dict = {}
-        dataset_dict["image_id"] = int(row[98307])
-        dataset_dict["height"] = 128
-        dataset_dict["width"] = 128
-        annotations = []
-        annotation = {}
-        annotation["bbox"] = [int(b) for b in row[98308:98312]]
-        annotation["area"] = int(annotation["bbox"][2] * annotation["bbox"][3])
-        annotation["bbox_mode"] = 1
-        annotation["segmentation"] = [[1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1]]
-        annotation["category_id"] = 0
-        annotation["redshift"] = row[-3]
-        annotation["obj_id"] = row[-2]
-        annotation["mag_i"] = row[-1]
-        annotations = [annotation]
-        dataset_dict["annotations"] = annotations
-        dataset_dict = copy.deepcopy(dataset_dict)
-
-        # Data Augmentation
-        auginput = T.AugInput(image)
-        if self.augmentations is not None:
-            augs = self.augmentations(image)
-        else:
-            augs = T.AugmentationList([])
-        # Transformations to model shapes
-        transform = augs(auginput)
-        # image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-        image = torch.from_numpy(auginput.image.copy())
-        annos = [
-            utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
-            for annotation in dataset_dict.pop("annotations")
-        ]
-
-        instances = utils.annotations_to_instances(annos, image.shape[1:])
-
-        instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
-
-        instances = utils.filter_empty_instances(instances)
-
-        return {
-            # create the format that the model expects
-            "image": image,
-            "image_shaped": auginput.image.transpose(1, 2, 0),
-            "height": dataset_dict["height"],
-            "width": dataset_dict["width"],
-            "image_id": dataset_dict["image_id"],
-            "instances": instances,
-            "annotations": annotations,
-        }
-
 
 def return_train_loader(cfg, mapper):
     """Returns a train loader

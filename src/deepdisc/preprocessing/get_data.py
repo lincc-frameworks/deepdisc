@@ -79,6 +79,73 @@ def get_DC2_data(dirpath, filters=['u','g','r','i','z','y'], tract=10054, patch=
     return np.array(datas), cutout
 
 
+def get_DC2_data_alltracts(dirpath, filters=['u','g','r','i','z','y'], tract=10054, patch=[0,0], coord=None, cutout_size=[128, 128], get_psf=False):
+    """
+    Get HSC data given tract/patch info or SkyCoord
+    
+    Parameters
+    ----------
+    dirpath : str
+        Path to HSC image file directory
+    filters : list 
+        A list of filters for your images. Default is ['g', 'r', 'i'].
+    tract  : int
+        An integer used for specifying the tract. Default is 10054|
+    patch : [int, int]
+        Patch #,#. Default is [0,0]
+    coord  : SkyCoord
+        Astropy SkyCoord, when specified, overrides tract/patch info and attempts to lookup HSC filename from ra, dec. 
+        Default is None
+    cutout_size: [int, int]
+        Size of cutout to use (set to None for no cutting). Default is [128, 128]
+        
+    The image filepath is in the form:
+        {dirpath}/deepCoadd/HSC-{filter}/{tract}/{patch[0]},{patch[1]}/calexp-HSC-{filter}-{tract}-{patch[0]},{patch[1]}.fits
+    
+    Returns
+    -------
+    data : ndarray
+        HSC data array with dimensions [filters, N, N]
+    """
+
+    
+    datas = []
+    filepath = os.path.join(dirpath,f'{tract}_{patch}_images.fits')
+
+    psf=None
+
+    
+    with fits.open(filepath) as obs_hdul:
+        #obs_hdul = fits.open(filepath)
+        alldata = obs_hdul[1].data
+        wcs = WCS(obs_hdul[1].header).dropaxis(2)
+        if get_psf:
+            psf = obs_hdul[2].data
+        
+    cutout =None
+    
+    for i,f in enumerate(filters):
+        datai = alldata[i]
+        # Cutout data at center of patch (coord=None) or at coord (if specified)
+        if cutout_size is not None:
+            # Use coord for center position if specified
+            if coord is None:
+                shape = np.shape(data)
+                position = (shape[0]/2, shape[1]/2)
+            else:
+                position = coord
+            #data = Cutout2D(data, position=position, size=cutout_size, wcs=wcs).data
+            cutout = Cutout2D(datai, position=position, size=cutout_size, wcs=wcs)
+            datai = cutout.data
+
+        datas.append(datai)
+            #except:
+            #    print('Missing filter ', f)        
+
+
+    return np.array(datas), cutout, psf
+
+
 def get_centers(sub_shape,n):
     centers=[]
     for i in range(n):
@@ -90,21 +157,22 @@ def get_centers(sub_shape,n):
     return centers
 
 
-def get_cutout(dirpath,tract,patch,sp,nblocks=4,filters=['u','g','r','i','z','y'],plot=False):
+def get_cutout(dirpath,tract,patch,sp,nblocks=4,filters=['u','g','r','i','z','y'],plot=False, get_psf=True):
 
-    dat,cutout = get_DC2_data(dirpath,filters=filters,tract=tract,patch=patch,coord=None,cutout_size=None)
-    print(dat.shape)
+    #dat,cutout = get_DC2_data(dirpath,filters=filters,tract=tract,patch=patch,coord=None,cutout_size=None)
+    dat,cutout,psf = get_DC2_data_alltracts(dirpath,filters=filters,tract=tract,patch=patch,coord=None,cutout_size=None, get_psf=get_psf)
+
     
     block_size = [dat.shape[1]//nblocks, dat.shape[2]//nblocks]
-    print(block_size)
 
     
     sub_shape =[dat.shape[1]//nblocks,dat.shape[2]//nblocks]
     centers = get_centers(sub_shape[::-1],nblocks)
 
     coord=centers[sp]
-    
-    datsm,cutout = get_DC2_data(dirpath,tract=tract,patch=patch,coord=coord,cutout_size=sub_shape)
+
+    #datsm,cutout = get_DC2_data(dirpath,tract=tract,patch=patch,coord=coord,cutout_size=sub_shape)
+    datsm,cutout,psf = get_DC2_data_alltracts(dirpath,tract=tract,patch=patch,coord=coord,cutout_size=sub_shape, get_psf=get_psf)
     if plot:
         fig,ax = plt.subplots(1,2,figsize=(10,10))
         img_rgb = scarlet.display.img_to_rgb(dat, norm=NORM)
@@ -118,7 +186,7 @@ def get_cutout(dirpath,tract,patch,sp,nblocks=4,filters=['u','g','r','i','z','y'
         ax[1].axis('off')
         plt.tight_layout()
     
-    return cutout,datsm
+    return cutout,datsm, psf
 
 
 def get_cutout_cat(dirpath,dall,tract,patch,sp,nblocks=4,filters=['u','g','r','i','z','y']):

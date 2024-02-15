@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from detectron2 import structures
 from detectron2.structures import BoxMode
+from astropy.wcs import WCS
 
 import deepdisc.astrodet.astrodet as toolkit
 from deepdisc.inference.predictors import get_predictions, get_predictions_new
@@ -47,6 +48,44 @@ def get_matched_object_inds(dataset_dict, outputs):
             matched_dts.append(i)
 
     return matched_gts, matched_dts
+
+
+
+def get_object_coords(dataset_dict, outputs):
+    """Returns indices for matched pairs of ground truth and detected objects in an image
+
+    Parameters
+    ----------
+    dataset_dict : dictionary
+        The dictionary metadata containing the wcs for a single image
+
+    Returns
+    -------
+        matched_gts: list(int)
+            The indices of matched objects in the ground truth list
+        matched_dts: list(int)
+            The indices of matched objects in the detections list
+        outputs: list(Intances)
+            The list of detected object Instances
+    """
+
+    wcs = WCS(dataset_dict['wcs'])
+    pred_boxes = outputs["instances"].pred_boxes
+    pred_boxes = pred_boxes.to("cpu")
+    
+    xs = []
+    ys = []
+    
+    for box in pred_boxes:
+        x,y = box[0], box[1]
+        xs.append(x)
+        ys.append(y)
+    
+    
+    coords = wcs.pixel_to_world(xs,ys)
+    ras = coords.ra.degree
+    decs = coords.dec.degree
+    return ras, decs
 
 
 def get_matched_object_classes(dataset_dicts, imreader, key_mapper, predictor):
@@ -274,7 +313,7 @@ def run_batched_match_class(dataloader, predictor):
     return true_classes, pred_classes
 
 
-def run_batched_match_redshift(dataloader, predictor, ids=False):
+def run_batched_match_redshift(dataloader, predictor, ids=False, blendedness=False):
     """
     Test function not yet implemented for batch prediction
 
@@ -282,6 +321,8 @@ def run_batched_match_redshift(dataloader, predictor, ids=False):
     ztrues = []
     zpreds = []
     matched_ids = []
+    matched_bnds = []
+
     with torch.no_grad():
         for i, dataset_dicts in enumerate(dataloader):
             batched_outputs = predictor.model(dataset_dicts)
@@ -295,11 +336,40 @@ def run_batched_match_redshift(dataloader, predictor, ids=False):
                     if ids:
                         oid = d["annotations"][int(gti)]["obj_id"]
                         matched_ids.append(oid)
+                    if blendedness:
+                        bnd = d["annotations"][int(gti)]["blendedness"]
+                        matched_bnds.append(bnd)
 
 
-    return ztrues, zpreds, matched_ids
+    return ztrues, zpreds, matched_ids, matched_bnds
 
 
 
+def run_batched_get_object_coords(dataloader, predictor):
+    """
+    Test function not yet implemented for batch prediction
 
+    """
+    zpreds = []
+    all_decs = []
+    all_ras = []
 
+    with torch.no_grad():
+        for i, dataset_dicts in enumerate(dataloader):
+            batched_outputs = predictor.model(dataset_dicts)
+            for outputs,d in zip(batched_outputs, dataset_dicts):
+                ras,decs = get_object_coords(d, outputs)
+                #all_ras.append(*ras)
+                #all_decs.append(*decs)
+                list(map(all_ras.append, ras))
+                list(map(all_decs.append, decs))
+
+                #pdfs = np.exp(outputs["instances"].pred_redshift_pdf.cpu().numpy())
+                #zpreds.append(pdfs)
+                for dti in range(len(outputs['instances'])):
+                    #ztrue = d["annotations"][int(gti)]["redshift"]
+                    pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+                    zpreds.append(pdf)
+                    
+    #print(zpreds)
+    return zpreds, all_ras, all_decs
