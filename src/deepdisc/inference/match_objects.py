@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from detectron2 import structures
 from detectron2.structures import BoxMode
+from astropy.wcs import WCS
 
 import deepdisc.astrodet.astrodet as toolkit
 from deepdisc.inference.predictors import get_predictions, get_predictions_new
@@ -68,21 +69,22 @@ def get_object_coords(dataset_dict, outputs):
             The list of detected object Instances
     """
 
-    
+    wcs = WCS(dataset_dict['wcs'])
     pred_boxes = outputs["instances"].pred_boxes
     pred_boxes = pred_boxes.to("cpu")
     
+    xs = []
+    ys = []
     
-    '''
-    psuedo-code
-    
-    xy,ys = pred_boxes[0], pred_boxes[1]
-    
-    ras,decs = wcs.pixel_to_world(xs,ys)
+    for box in pred_boxes:
+        x,y = box[0], box[1]
+        xs.append(x)
+        ys.append(y)
     
     
-    '''
-
+    coords = wcs.pixel_to_world(xs,ys)
+    ras = coords.ra.degree
+    decs = coords.dec.degree
     return ras, decs
 
 
@@ -343,5 +345,31 @@ def run_batched_match_redshift(dataloader, predictor, ids=False, blendedness=Fal
 
 
 
+def run_batched_get_object_coords(dataloader, predictor):
+    """
+    Test function not yet implemented for batch prediction
 
+    """
+    zpreds = []
+    all_decs = []
+    all_ras = []
 
+    with torch.no_grad():
+        for i, dataset_dicts in enumerate(dataloader):
+            batched_outputs = predictor.model(dataset_dicts)
+            for outputs,d in zip(batched_outputs, dataset_dicts):
+                ras,decs = get_object_coords(d, outputs)
+                #all_ras.append(*ras)
+                #all_decs.append(*decs)
+                list(map(all_ras.append, ras))
+                list(map(all_decs.append, decs))
+
+                #pdfs = np.exp(outputs["instances"].pred_redshift_pdf.cpu().numpy())
+                #zpreds.append(pdfs)
+                for dti in range(len(outputs['instances'])):
+                    #ztrue = d["annotations"][int(gti)]["redshift"]
+                    pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
+                    zpreds.append(pdf)
+                    
+    #print(zpreds)
+    return zpreds, all_ras, all_decs

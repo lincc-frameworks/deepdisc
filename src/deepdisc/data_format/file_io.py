@@ -7,6 +7,11 @@ from pathlib import Path
 import numpy as np
 import random
 import shutil
+from iopath.common.file_io import file_lock
+from detectron2.utils.file_io import PathManager
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class DDLoader:
@@ -258,3 +263,41 @@ def get_data_from_json(filename):
     with open(filename, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data
+
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
+def convert_to_json(dict_list, output_file, allow_cached=True):
+    """
+    Converts dataset into COCO format and saves it to a json file.
+    dataset_name must be registered in DatasetCatalog and in detectron2's standard format.
+
+    Args:
+        dict_list: list of metadata dictionaries
+        output_file: path of json file that will be saved to
+        allow_cached: if json file is already present then skip conversion
+    """
+
+    PathManager.mkdirs(os.path.dirname(output_file))
+    with file_lock(output_file):
+        if PathManager.exists(output_file) and allow_cached:
+            logger.warning(
+                f"Using previously cached COCO format annotations at '{output_file}'. "
+                "You need to clear the cache file if your dataset has been modified."
+            )
+        else:
+            print(f"Caching COCO format annotations at '{output_file}' ...")
+            tmp_file = output_file + ".tmp"
+            with PathManager.open(tmp_file, "w") as f:
+                json.dump(dict_list, f,cls=NpEncoder)
+            shutil.move(tmp_file, output_file)
