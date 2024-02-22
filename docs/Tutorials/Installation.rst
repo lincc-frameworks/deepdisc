@@ -20,7 +20,6 @@ Finally, install deepdisc with
 
 .. code-block:: bash
     >> git clone https://github.com/lincc-frameworks/deepdisc.git
-
     >> cd deepdisc
     >> pip install -e .
 
