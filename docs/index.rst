@@ -47,4 +47,4 @@ Notes:
 
    Home page <self>
    API Reference <autoapi/index>
-   Notebooks <notebooks>
+   Tutorials <Tutorials>

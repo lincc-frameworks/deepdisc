@@ -77,10 +77,12 @@ def get_object_coords(dataset_dict, outputs):
     ys = []
     
     for box in pred_boxes:
-        x,y = box[0], box[1]
+        w = box[2]-box[0]
+        h = box[3]-box[1]
+        x = box[0]+w//2
+        y = box[1]+h//2
         xs.append(x)
         ys.append(y)
-    
     
     coords = wcs.pixel_to_world(xs,ys)
     ras = coords.ra.degree

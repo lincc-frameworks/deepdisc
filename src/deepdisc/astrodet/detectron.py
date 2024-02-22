@@ -17,7 +17,6 @@ from typing import Dict, List, Optional, Tuple
 import detectron2.data as data
 import detectron2.data.transforms as T
 
-# Yufeng Dec21 more import
 import matplotlib.pyplot as plt
 import torch
 from detectron2.data import build_detection_train_loader
@@ -391,7 +390,7 @@ class KRandomAugmentationList(Augmentation):
         if self.cropaug is None:
             pass
         else:
-            augl.insert(0, self.cropaug)
+            augl.insert(-1, self.cropaug)
 
         return augl
 

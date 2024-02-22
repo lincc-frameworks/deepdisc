@@ -208,8 +208,8 @@ def dc2_train_augs(image):
 
         ],
         k=-1,
-        #cropaug=None,
-        cropaug=T.RandomCrop("relative", (0.5, 0.5))
+        cropaug=None,
+        #cropaug=T.RandomCrop("relative", (0.5, 0.5))
     )
     return augs
 
