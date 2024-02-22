@@ -310,7 +310,7 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
                 
             fcs = self.redshift_conv(features)
             pdfs = self.output_pdf(fcs)
-            zs = torch.tensor(np.linspace(0, 5, 200)).to(fcs.device)
+            zs = torch.tensor(np.linspace(0, 3, 300)).to(fcs.device)
             nin = torch.as_tensor(np.array([num_instances_per_img]))
             #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
 
@@ -318,7 +318,7 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
 
             
 
-            probs = torch.zeros((torch.sum(nin), 200)).to(fcs.device)
+            probs = torch.zeros((torch.sum(nin), 300)).to(fcs.device)
             for j, z in enumerate(zs):
                 probs[:, j] = pdfs.log_prob(z)
 
@@ -609,7 +609,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
                 
             fcs = self.redshift_fc(features)
             pdfs = self.output_pdf(fcs)
-            zs = torch.tensor(np.linspace(0, 5, 200)).to(fcs.device)
+            zs = torch.tensor(np.linspace(0, 3, 300)).to(fcs.device)
             nin = torch.as_tensor(np.array([num_instances_per_img]))
             #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
 
@@ -617,7 +617,7 @@ class RedshiftPDFCasROIHeads(CascadeROIHeads):
 
             
 
-            probs = torch.zeros((torch.sum(nin), 200)).to(fcs.device)
+            probs = torch.zeros((torch.sum(nin), 300)).to(fcs.device)
             for j, z in enumerate(zs):
                 probs[:, j] = pdfs.log_prob(z)
 
@@ -762,7 +762,7 @@ class OldRedshiftPDFCasROIHeads(CascadeROIHeads):
                 
             fcs = self.redshift_fc(features)
             pdfs = self.output_pdf(fcs)
-            zs = torch.tensor(np.linspace(0, 5, 200)).to(fcs.device)
+            zs = torch.tensor(np.linspace(-1, 5, 200)).to(fcs.device)
             nin = torch.as_tensor(np.array([num_instances_per_img]))
             #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
 
