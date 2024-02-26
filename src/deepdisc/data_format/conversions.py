@@ -4,8 +4,9 @@ import astropy.io.fits as fits
 import h5py
 import numpy as np
 import scarlet
-import json
-
+from detectron2.utils.file_io import PathManager
+from iopath.common.file_io import file_lock
+import os, json, shutil
 
 def fitsim_to_numpy(img_files, outdir):
     """Converts a list of single-band FITS images to multi-band numpy arrays
@@ -112,3 +113,31 @@ def numpyim_to_hdf5(img_files, outname):
         data = f.create_dataset("images", data=all_images)
 
     return
+
+
+def convert_to_json(dict_list, output_file, allow_cached=True):
+    """
+    Converts dataset into COCO format and saves it to a json file.
+    dataset_name must be registered in DatasetCatalog and in detectron2's standard format.
+
+    Args:
+        dataset_name:
+            reference from the config file to the catalogs
+            must be registered in DatasetCatalog and in detectron2's standard format
+        output_file: path of json file that will be saved to
+        allow_cached: if json file is already present then skip conversion
+    """
+
+    PathManager.mkdirs(os.path.dirname(output_file))
+    with file_lock(output_file):
+        if PathManager.exists(output_file) and allow_cached:
+            logger.warning(
+                f"Using previously cached COCO format annotations at '{output_file}'. "
+                "You need to clear the cache file if your dataset has been modified."
+            )
+        else:
+            print(f"Caching COCO format annotations at '{output_file}' ...")
+            tmp_file = output_file + ".tmp"
+            with PathManager.open(tmp_file, "w") as f:
+                json.dump(dict_list, f)
+            shutil.move(tmp_file, output_file)
