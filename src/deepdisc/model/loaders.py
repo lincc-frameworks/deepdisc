@@ -129,8 +129,7 @@ class MagRedshiftDictMapper(DataMapper):
         annos = [
             utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
-            if annotation["redshift"] != 0.0 and annotation["mag_i"] < 25.3
-        ]
+            if annotation["redshift"] != 0.0]# and annotation["mag_i"] < 25.3]
 
         instances = utils.annotations_to_instances(annos, image.shape[1:])
 
