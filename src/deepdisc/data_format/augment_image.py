@@ -213,6 +213,39 @@ def dc2_train_augs(image):
     )
     return augs
 
+
+
+def dc2_train_augs_full(image):
+    """Get the augmentation list
+
+    Parameters
+    ----------
+    image: image
+        The image to be augmented
+
+    Returns
+    -------
+    augs: detectron_addons.KRandomAugmentationList
+        The list of augs for training.  Set to RandomRotation, RandomFlip, RandomCrop
+    """
+
+    augs = detectron_addons.KRandomAugmentationList(
+        [
+            # my custom augs
+            T.RandomRotation([-90, 90, 180], sample_style="choice"),
+            T.RandomFlip(prob=0.5),
+            T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+            detectron_addons.CustomAug(multiband_gaussblur,prob=1.0),
+            detectron_addons.CustomAug(redden,prob=1.0),
+
+        ],
+        k=-1,
+        cropaug=None,
+        #cropaug=T.RandomCrop("relative", (0.5, 0.5))
+    )
+    return augs
+
+
 def hsc_test_augs(image):
     """Get the augmentation list
 

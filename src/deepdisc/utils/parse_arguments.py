@@ -176,6 +176,30 @@ For python-based LazyConfig, use "path.key=value".
     return parser
 
 
+def make_rail_informer_arg_parser():
+    """Create the parser for DeepDisc inference, including common arguments used by
+    detectron2 users.
+
+    Returns
+    -------
+    parser : ArgumentParser
+        The argument parser.
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--config", type=str, help="path to config file")
+    parser.add_argument("--output-dir", type=str, metavar="DIRECTORY", help="output directory for informer model")
+    parser.add_argument("--run-name", type=str, help="name of the run, used as a regex in the saved model")
+    parser.add_argument("--trainfile", type=str, help='path to the training file of images')
+    parser.add_argument("--metadatafile", type=str, help='path to the metadata file for images')
+    parser.add_argument("--batch-size", default=2, type=int, help='batch size for training')
+    
+    return parser
+
+
+
+
+
 def dtype_from_args(dt=32):
     """Returns the dtype corresponding to the dtype argument string.
 
