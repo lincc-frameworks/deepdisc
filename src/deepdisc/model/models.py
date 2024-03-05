@@ -8,6 +8,7 @@ from detectron2.layers import Conv2d, ShapeSpec, cat, get_norm, nonzero_tuple
 from detectron2.modeling.matcher import Matcher
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.modeling.roi_heads import CascadeROIHeads, StandardROIHeads, select_foreground_proposals
+from detectron2.modeling.proposal_generator.proposal_utils import add_ground_truth_to_proposals
 from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
 from torch import nn
 from torch.distributions.beta import Beta
@@ -429,16 +430,27 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
         )
         return pdf
 
-    def _forward_redshift(self, features, instances):
+    def _forward_redshift(self, features, instances, targets=None):
         
         if self.training:
-            finstances, _ = select_foreground_proposals(instances, self.num_classes)
+            #print('proposals ', len(instances[0]))
+            proposals = add_ground_truth_to_proposals(targets, instances)
+            #print('proposals with gt', len(proposals[0]))
+            #finstances, _ = select_foreground_proposals(instances, self.num_classes)
+            #print('sampled foreground proposals', len(finstances[0]))
+         
+            #Add all gt bounding boxes for redshift regression
+            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+
+            #print('sampled foreground proposals', len(fproposals[0]))
+
             instances = []
             for x in finstances:
                 gold_inst = x[x.gt_magi < 25.3]
                 instances.append(gold_inst)
             if len(instances)==0:
                 return 0
+        #print('instances ', len(instances[0]))
                 
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
@@ -468,7 +480,7 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
                 
             fcs = self.redshift_fc(features)
             pdfs = self.output_pdf(fcs)
-            zs = torch.tensor(np.linspace(0, 5, 200)).to(fcs.device)
+            zs = torch.tensor(np.linspace(0, 3, 300)).to(fcs.device)
             nin = torch.as_tensor(np.array([num_instances_per_img]))
             #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
 
@@ -476,7 +488,7 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
 
             
 
-            probs = torch.zeros((torch.sum(nin), 200)).to(fcs.device)
+            probs = torch.zeros((torch.sum(nin), 300)).to(fcs.device)
             for j, z in enumerate(zs):
                 probs[:, j] = pdfs.log_prob(z)
 
@@ -494,7 +506,7 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
             # Need targets to box head
             losses = self._forward_box(features, proposals, targets)
             losses.update(self._forward_mask(features, proposals))
-            losses.update(self._forward_redshift(features, proposals))
+            losses.update(self._forward_redshift(features, proposals, targets))
             losses.update(self._forward_keypoint(features, proposals))
             return proposals, losses
         else:
