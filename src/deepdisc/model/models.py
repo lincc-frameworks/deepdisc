@@ -130,19 +130,30 @@ class WeightedRedshiftPDFCasROIHeads(CascadeROIHeads):
         )
         return pdf
 
-    def _forward_redshift(self, features, instances):
+    def _forward_redshift(self, features, instances, targets=None):
         
         if self.training:
-            instances, _ = select_foreground_proposals(instances, self.num_classes)
-        
+            #print('proposals ', len(instances[0]))
+            proposals = add_ground_truth_to_proposals(targets, instances)
+         
+            #Add all gt bounding boxes for redshift regression
+            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+
+            #print('sampled foreground proposals', len(fproposals[0]))
+
+            instances = []
+            for x in finstances:
+                gold_inst = x[x.gt_magi < 25.3]
+                instances.append(gold_inst)
+            if len(instances)==0:
+                return 0
+                
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
             boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
-
+        
         features = nn.Flatten()(features)
-        #ebvs = cat([x.gt_ebv for x in instances])
-        #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
         
         num_instances_per_img = [len(i) for i in instances]
 
@@ -193,7 +204,7 @@ class WeightedRedshiftPDFCasROIHeads(CascadeROIHeads):
             # Need targets to box head
             losses = self._forward_box(features, proposals, targets)
             losses.update(self._forward_mask(features, proposals))
-            losses.update(self._forward_redshift(features, proposals))
+            losses.update(self._forward_redshift(features, proposals, targets))
             losses.update(self._forward_keypoint(features, proposals))
             return proposals, losses
         else:
@@ -280,17 +291,27 @@ class CNNRedshiftPDFCasROIHeads(CascadeROIHeads):
     def _forward_redshift(self, features, instances):
         
         if self.training:
-            instances, _ = select_foreground_proposals(instances, self.num_classes)
-        
+            #print('proposals ', len(instances[0]))
+            proposals = add_ground_truth_to_proposals(targets, instances)
+         
+            #Add all gt bounding boxes for redshift regression
+            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+
+            #print('sampled foreground proposals', len(fproposals[0]))
+
+            instances = []
+            for x in finstances:
+                gold_inst = x[x.gt_magi < 25.3]
+                instances.append(gold_inst)
+            if len(instances)==0:
+                return 0
+                
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
             boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
             features = self.redshift_pooler(features, boxes)
         
-        #features = nn.Flatten()(features)
-        #ebvs = cat([x.gt_ebv for x in instances])
-        #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
-
+        features = nn.Flatten()(features)
         
         num_instances_per_img = [len(i) for i in instances]
 
@@ -405,8 +426,7 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
         self.num_components = num_components
         self.zloss_factor = zloss_factor
 
-
-
+        '''
         self.redshift_fc = nn.Sequential(
             nn.Linear(np.prod(self._output_size), 1024),
             nn.Tanh(),
@@ -415,7 +435,20 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
             nn.Linear(64, self.num_components * 3),
             #nn.Softplus()
         )
+        '''
 
+        
+        self.redshift_fc = nn.Sequential(
+            nn.Linear(np.prod(self._output_size), 64),
+            nn.Tanh(),
+            nn.Linear(64, 16),
+            nn.Tanh(),
+            nn.Linear(16, self.num_components * 3),
+            #nn.Softplus()
+        )
+
+        
+        
     def output_pdf(self, inputs):
         pdf = Independent(
             MixtureSameFamily(
@@ -433,24 +466,26 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
     def _forward_redshift(self, features, instances, targets=None):
         
         if self.training:
-            #print('proposals ', len(instances[0]))
-            proposals = add_ground_truth_to_proposals(targets, instances)
-            #print('proposals with gt', len(proposals[0]))
-            #finstances, _ = select_foreground_proposals(instances, self.num_classes)
-            #print('sampled foreground proposals', len(finstances[0]))
-         
             #Add all gt bounding boxes for redshift regression
-            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+            #proposals = add_ground_truth_to_proposals(targets, instances)
+            
+            #finstances, _ = select_foreground_proposals(proposals, self.num_classes)
 
-            #print('sampled foreground proposals', len(fproposals[0]))
+            instances, _ = select_foreground_proposals(instances, self.num_classes)
 
+            '''
             instances = []
             for x in finstances:
                 gold_inst = x[x.gt_magi < 25.3]
                 instances.append(gold_inst)
             if len(instances)==0:
                 return 0
+            '''
         #print('instances ', len(instances[0]))
+        #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy')
+        #sampled_zs = instances[0].gt_redshift.detach().cpu().numpy()
+        #szs = np.concatenate([sz,sampled_zs])
+        #np.save('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy', szs)
                 
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
@@ -506,8 +541,346 @@ class RedshiftPDFCasROIHeadsGold(CascadeROIHeads):
             # Need targets to box head
             losses = self._forward_box(features, proposals, targets)
             losses.update(self._forward_mask(features, proposals))
-            losses.update(self._forward_redshift(features, proposals, targets))
+            #losses.update(self._forward_redshift(features, proposals, targets))
+            losses.update(self._forward_redshift(features, proposals))
             losses.update(self._forward_keypoint(features, proposals))
+            return proposals, losses
+        else:
+            pred_instances = self._forward_box(features, proposals)
+            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self._forward_redshift(features, pred_instances)
+            return pred_instances, {}
+
+
+        
+class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
+    """CascadeROIHead with added redshift pdf capability.  Follows the detectron2 CascadeROIHead class init, except for
+
+    Parameters
+    ----------
+    num_components : int
+        Number of gaussian components in the Mixture Density Network
+    """
+
+    # def __init__(self, cfg, input_shape):
+    def __init__(
+        self,
+        num_components: int,
+        zloss_factor: float,
+        cmax: int,
+        *,
+        box_in_features: List[str],
+        box_pooler: ROIPooler,
+        box_heads: List[nn.Module],
+        box_predictors: List[nn.Module],
+        proposal_matchers: List[Matcher],
+        **kwargs,
+    ):
+        super().__init__(
+            box_in_features=box_in_features,
+            box_pooler=box_pooler,
+            box_heads=box_heads,
+            box_predictors=box_predictors,
+            proposal_matchers=proposal_matchers,
+            **kwargs,
+        )
+
+        self.redshift_pooler = ROIPooler(
+            output_size=7,
+            scales=tuple(k for k in [0.25, 0.125, 0.0625, 0.03125]),
+            sampling_ratio=0,
+            pooler_type="ROIAlignV2",
+        )
+
+        in_channels = 256
+        inshape = ShapeSpec(channels=in_channels, height=7, width=7)
+
+        self._output_size = (inshape.channels, inshape.height, inshape.width)
+        self.num_components = num_components
+        self.zloss_factor = zloss_factor
+        self.cmax = cmax
+        
+        coarse_bins = np.linspace(0,3,10)
+        coarse_bins = torch.tensor(coarse_bins)        
+        self.register_buffer('coarse_bins', coarse_bins, persistent=False)
+
+        self.redshift_fc = nn.Sequential(
+            nn.Linear(np.prod(self._output_size), 1024),
+            nn.Tanh(),
+            nn.Linear(1024, 64),
+            nn.Tanh(),
+            nn.Linear(64, self.num_components * 3),
+            #nn.Softplus()
+        )
+
+    def _positive_sample_proposals(
+        self, matched_idxs: torch.Tensor, matched_labels: torch.Tensor, gt_classes: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Based on the matching between N proposals and M groundtruth,
+        sample the proposals and set their classification labels.
+
+        Args:
+            matched_idxs (Tensor): a vector of length N, each is the best-matched
+                gt index in [0, M) for each proposal.
+            matched_labels (Tensor): a vector of length N, the matcher's label
+                (one of cfg.MODEL.ROI_HEADS.IOU_LABELS) for each proposal.
+            gt_classes (Tensor): a vector of length M.
+
+        Returns:
+            Tensor: a vector of indices of sampled proposals. Each is in [0, N).
+            Tensor: a vector of the same length, the classification label for
+                each sampled proposal. Each sample is labeled as either a category in
+                [0, num_classes) or the background (num_classes).
+        """
+        has_gt = gt_classes.numel() > 0
+        # Get the corresponding GT for each proposal
+        if has_gt:
+            gt_classes = gt_classes[matched_idxs]
+            # Label unmatched proposals (0 label from matcher) as background (label=num_classes)
+            gt_classes[matched_labels == 0] = self.num_classes
+            # Label ignore proposals (-1 label)
+            gt_classes[matched_labels == -1] = -1
+        else:
+            gt_classes = torch.zeros_like(matched_idxs) + self.num_classes
+
+        #sampled_fg_idxs, sampled_bg_idxs = subsample_labels(
+        #    gt_classes, self.batch_size_per_image, self.positive_fraction, self.num_classes
+        #)
+        
+        positive = nonzero_tuple((gt_classes != -1) & (gt_classes != self.num_classes))[0]
+        positive = nonzero_tuple((gt_classes != -1) & (gt_classes != self.num_classes))[0]
+        #sampled_idxs = torch.cat([sampled_fg_idxs, sampled_bg_idxs], dim=0)
+        return positive, gt_classes[positive]
+        
+    @torch.no_grad()
+    def select_all_positive_proposals(
+        self, proposals: List[Instances], targets: List[Instances], proposal_append_gt=True
+    ) -> List[Instances]:
+        """
+        Prepare all positive proposals to be used to train the Redshift ROI head. 
+        It performs box matching between `proposals` and `targets`, and assigns
+        training labels to the proposals.
+        It returns ``self.batch_size_per_image`` random samples from proposals and groundtruth
+        boxes, with a fraction of positives that is no larger than
+        ``self.positive_fraction``.
+
+        Args:
+            See :meth:`ROIHeads.forward`
+
+        Returns:
+            list[Instances]:
+                length `N` list of `Instances`s containing the proposals
+                sampled for training. Each `Instances` has the following fields:
+
+                - proposal_boxes: the proposal boxes
+                - gt_boxes: the ground-truth box that the proposal is assigned to
+                  (this is only meaningful if the proposal has a label > 0; if label = 0
+                  then the ground-truth box is random)
+
+                Other fields such as "gt_classes", "gt_masks", that's included in `targets`.
+        """
+        # Augment proposals with ground-truth boxes.
+        # In the case of learned proposals (e.g., RPN), when training starts
+        # the proposals will be low quality due to random initialization.
+        # It's possible that none of these initial
+        # proposals have high enough overlap with the gt objects to be used
+        # as positive examples for the second stage components (box head,
+        # cls head, mask head). Adding the gt boxes to the set of proposals
+        # ensures that the second stage components will have some positive
+        # examples from the start of training. For RPN, this augmentation improves
+        # convergence and empirically improves box AP on COCO by about 0.5
+        # points (under one tested configuration).
+        if proposal_append_gt:
+            proposals = add_ground_truth_to_proposals(targets, proposals)
+
+        proposals_with_gt = []
+
+        num_fg_samples = []
+        num_bg_samples = []
+        for proposals_per_image, targets_per_image in zip(proposals, targets):
+            has_gt = len(targets_per_image) > 0
+            match_quality_matrix = pairwise_iou(
+                targets_per_image.gt_boxes, proposals_per_image.proposal_boxes
+            )
+            matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix)
+            
+            sampled_idxs, gt_classes = self._positive_sample_proposals(
+                matched_idxs, matched_labels, targets_per_image.gt_classes
+            )
+
+            # Set target attributes of the sampled proposals:
+            proposals_per_image = proposals_per_image[sampled_idxs]
+            proposals_per_image.gt_classes = gt_classes
+
+            if has_gt:
+                sampled_targets = matched_idxs[sampled_idxs]
+                # We index all the attributes of targets that start with "gt_"
+                # and have not been added to proposals yet (="gt_classes").
+                # NOTE: here the indexing waste some compute, because heads
+                # like masks, keypoints, etc, will filter the proposals again,
+                # (by foreground/background, or number of keypoints in the image, etc)
+                # so we essentially index the data twice.
+                for (trg_name, trg_value) in targets_per_image.get_fields().items():
+                    if trg_name.startswith("gt_") and not proposals_per_image.has(trg_name):
+                        proposals_per_image.set(trg_name, trg_value[sampled_targets])
+            # If no GT is given in the image, we don't know what a dummy gt value can be.
+            # Therefore the returned proposals won't have any gt_* fields, except for a
+            # gt_classes full of background label.
+
+            #num_bg_samples.append((gt_classes == self.num_classes).sum().item())
+            #num_fg_samples.append(gt_classes.numel() - num_bg_samples[-1])
+            proposals_with_gt.append(proposals_per_image)
+
+        # Log the number of fg/bg samples that are selected for training ROI heads
+        #storage = get_event_storage()
+        #storage.put_scalar("roi_head/num_fg_samples", np.mean(num_fg_samples))
+        #storage.put_scalar("roi_head/num_bg_samples", np.mean(num_bg_samples))
+        #print(len(proposals_with_gt))
+        return proposals_with_gt
+
+    @torch.no_grad()
+    def uniform_redshift_sample(self, proposals: List[Instances],
+    ) -> List[Instances]:
+        """
+        Resample foreground proposals on a coarse grid to approximate a uniform distribution. 
+        Assumes proposals have been matched and assigned redshifts. It returns a sample from the proposals.   
+
+        Args:
+            See :meth:`ROIHeads.forward`
+
+        Returns:
+            list[Instances]:
+                length `N` list of `Instances`s containing the resampled proposals
+        """
+        resampled_proposals = []
+        for proposals_per_image in proposals:
+
+        
+            redshifts = proposals_per_image.gt_redshift
+            inds = torch.bucketize(redshifts,self.coarse_bins)
+            inds_resample = []
+            for i in torch.unique(inds):
+                ci = torch.where(inds==i)[0]
+                cinds = inds[ci]
+                indices = torch.randperm(len(cinds))[0:self.cmax]
+                cinds = ci[indices]
+                inds_resample.append(cinds)
+
+            #inds_resample = nonzero_tuple(inds_resample)[0]
+            inds_resample = cat(inds_resample)
+            resampled_proposals.append(proposals_per_image[inds_resample])
+            
+        return resampled_proposals
+        
+    def output_pdf(self, inputs):
+        pdf = Independent(
+            MixtureSameFamily(
+                mixture_distribution=Categorical(logits=inputs[..., : self.num_components]),
+                component_distribution=Normal(
+                    inputs[..., self.num_components : 2 * self.num_components],
+                    #F.softplus(inputs[..., 2 * self.num_components :]),
+                    torch.exp(inputs[..., 2 * self.num_components :]),
+                ),
+            ),
+            0,
+        )
+        return pdf
+
+    def _forward_redshift(self, features, instances, targets=None):
+        
+        if self.training:
+            #print('proposals ', len(instances[0]))
+            #proposals = add_ground_truth_to_proposals(targets, instances)
+            proposals = self.select_all_positive_proposals(instances, targets)
+            
+            #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs.npy')
+            #sampled_zs = proposals[0].gt_redshift.detach().cpu().numpy()
+            #szs = np.concatenate([sz,sampled_zs])
+            #np.save('/home/g4merz/rail_deepdisc/sampled_zs.npy', szs)
+            
+            
+            #print('positive proposals', len(proposals[0]))
+            #proposals = proposals[:100]
+            #print('proposals with gt', len(proposals[0]))
+            #finstances, _ = select_foreground_proposals(instances, self.num_classes)
+            #print('sampled foreground proposals', len(finstances[0]))
+         
+            #Add all gt bounding boxes for redshift regression
+            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+
+            #print('sampled foreground proposals', len(fproposals[0]))
+
+            instances = []
+            for x in finstances:
+                gold_inst = x[x.gt_magi < 25.3]
+                instances.append(gold_inst)
+            if len(instances)==0:
+                return 0
+            
+            instances = self.uniform_redshift_sample(instances)
+
+        #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy')
+        #sampled_zs = instances[0].gt_redshift.detach().cpu().numpy()
+        #szs = np.concatenate([sz,sampled_zs])
+        #np.save('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy', szs)
+        if self.redshift_pooler is not None:
+            features = [features[f] for f in self.box_in_features]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            features = self.redshift_pooler(features, boxes)
+        
+        features = nn.Flatten()(features)
+        #ebvs = cat([x.gt_ebv for x in instances])
+        #features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
+        
+        num_instances_per_img = [len(i) for i in instances]
+
+        if self.training:
+            fcs = self.redshift_fc(features)
+            pdfs = self.output_pdf(fcs)
+
+            gt_redshifts = cat([x.gt_redshift for x in instances])
+            nlls = -pdfs.log_prob(gt_redshifts) * self.zloss_factor
+
+            return {"redshift_loss": torch.mean(nlls)}
+
+        else:
+            # print(len(instances))
+            # print(len(instances[0]))
+            if len(instances[0]) == 0:
+                return instances
+                
+            fcs = self.redshift_fc(features)
+            pdfs = self.output_pdf(fcs)
+            zs = torch.tensor(np.linspace(0, 3, 300)).to(fcs.device)
+            nin = torch.as_tensor(np.array([num_instances_per_img]))
+            #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
+
+            inds = np.cumsum(num_instances_per_img)
+
+            
+
+            probs = torch.zeros((torch.sum(nin), 300)).to(fcs.device)
+            for j, z in enumerate(zs):
+                probs[:, j] = pdfs.log_prob(z)
+
+            for i, pred_instances in enumerate(instances):
+                pred_instances.pred_redshift_pdf = np.split(probs,inds)[i]
+
+            return instances
+
+    def forward(self, images, features, proposals, targets=None):
+        del images
+        if self.training:
+            sampledproposals = self.label_and_sample_proposals(proposals, targets)
+            #zproposals = self.select_uniform_zproposals(proposals)
+
+        if self.training:
+            # Need targets to box head
+            losses = self._forward_box(features, sampledproposals, targets)
+            losses.update(self._forward_mask(features, sampledproposals))
+            losses.update(self._forward_redshift(features, proposals, targets))
+            losses.update(self._forward_keypoint(features, sampledproposals))
             return proposals, losses
         else:
             pred_instances = self._forward_box(features, proposals)
