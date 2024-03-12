@@ -235,13 +235,13 @@ def dc2_train_augs_full(image):
             T.RandomRotation([-90, 90, 180], sample_style="choice"),
             T.RandomFlip(prob=0.5),
             T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-            detectron_addons.CustomAug(multiband_gaussblur,prob=1.0),
-            detectron_addons.CustomAug(redden,prob=1.0),
+            #detectron_addons.CustomAug(multiband_gaussblur,prob=1.0),
+            #detectron_addons.CustomAug(redden,prob=1.0),
 
         ],
         k=-1,
-        cropaug=None,
-        #cropaug=T.RandomCrop("relative", (0.5, 0.5))
+        #cropaug=None,
+        cropaug=T.RandomCrop("relative", (0.5, 0.5))
     )
     return augs
 
