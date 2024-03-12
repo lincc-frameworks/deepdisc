@@ -235,7 +235,8 @@ class DDLoader:
                     shutil.copy(imf, os.path.join(os.path.join(outdir,dset),ntpath.basename(imf)))
                 shutil.copy(maskfs[0], os.path.join(os.path.join(outdir,dset),ntpath.basename(maskfs[0])))
             img_files = np.array([img_files[j] for j in allinds if j not in inds])
-        
+            mask_files = np.array([mask_files[j] for j in allinds if j not in inds])
+
         
         return self
 
