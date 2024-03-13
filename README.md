@@ -1,7 +1,7 @@
 # DeepDISC
 Using deep learning for Detection, Instance Segmentation, and Classification on astornomical survey images.
 
-*Reference Paper:* [Merz et al. 2023, in prep.]
+*Reference Paper:* [Merz et al. 2023](https://academic.oup.com/mnras/article/526/1/1122/7273850)
 
 *Corresponding Author:* 
 [Grant Merz](gmerz3@illinois.edu), University of Illinois at Urbana-Champaign
