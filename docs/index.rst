@@ -16,7 +16,7 @@ Geting Started
 ========================================================================================
 
 .. toctree::
-   :hidden:
+   :maxdepth: 2
    
    Home page <self>
    Installation <Installation>
