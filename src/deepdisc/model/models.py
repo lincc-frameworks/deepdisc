@@ -750,8 +750,6 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
         """
         resampled_proposals = []
         for proposals_per_image in proposals:
-
-        
             redshifts = proposals_per_image.gt_redshift
             inds = torch.bucketize(redshifts,self.coarse_bins)
             inds_resample = []
