@@ -17,6 +17,7 @@ Geting Started
 
 .. toctree::
    :includehidden:
+   
    Home page <self>
    Installation <Installation>
    Tutorials <Tutorials>
