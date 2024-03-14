@@ -16,7 +16,7 @@ Geting Started
 ========================================================================================
 
 .. toctree::
-   :includehidden:
+   :hidden:
    
    Home page <self>
    Installation <Installation>
