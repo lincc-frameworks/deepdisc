@@ -20,6 +20,9 @@ Geting Started
 
 .. toctree::
    :hidden:
+   
    Home page <self>
-   Tutorials <Tutorials>
    API Reference <autoapi/index>
+   Installation <Installation>
+   Tutorials <Tutorials>
+
