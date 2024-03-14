@@ -1,6 +1,3 @@
-
-
-
 .. image:: DeepDISC_logo.png
    :align: center
    :scale: 15 %
@@ -19,10 +16,8 @@ Geting Started
 ========================================================================================
 
 .. toctree::
-   :hidden:
    
    Home page <self>
-   API Reference <autoapi/index>
    Installation <Installation>
    Tutorials <Tutorials>
-
+   API Reference <autoapi/index>
