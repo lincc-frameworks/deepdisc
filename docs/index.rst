@@ -16,7 +16,7 @@ Geting Started
 ========================================================================================
 
 .. toctree::
-   
+   :maxdepth: 1
    Home page <self>
    Installation <Installation>
    Tutorials <Tutorials>
