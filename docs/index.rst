@@ -1,50 +1,24 @@
-.. deepdisc documentation main file.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. image:: DeepDISC_logo.png
+   :align: center
+   :scale: 15 %
 
-Welcome to deepdisc's documentation!
+
+
+DeepDISC
 ========================================================================================
 
-Dev Guide - Getting Started
----------------------------
-
-Before installing any dependencies or writing code, it's a great idea to create a
-virtual environment. LINCC-Frameworks engineers primarily use `conda` to manage virtual
-environments. If you have conda installed locally, you can run the following to
-create and activate a new environment.
-
-.. code-block:: bash
-
-   >> conda create env -n <env_name> python=3.10
-   >> conda activate <env_name>
+Detection, Instance Segmentation, and Classification with deep learning (DeepDISC) is a framework built on `detectron2 <https://detectron2.readthedocs.io/en/latest/>`_ that identifies, deblends, and performs other tasks on objects in astronomical images.  Using state-of-the-art models available in detectron2, DeepDISC can be applied to classify stars/galaxies, estimate redshifts, and more. This code was developed as part of a LINCC Frameworks Incubator.
 
 
-Once you have created a new environment, you can install this project for local
-development using the following commands:
-
-.. code-block:: bash
-
-   >> pip install -e .'[dev]'
-   >> pre-commit install
-   >> conda install pandoc
 
 
-Notes:
-
-1) The single quotes around ``'[dev]'`` may not be required for your operating system.
-2) ``pre-commit install`` will initialize pre-commit for this local repository, so
-   that a set of tests will be run prior to completing a local commit. For more
-   information, see the Python Project Template documentation on
-   `pre-commit <https://lincc-ppt.readthedocs.io/en/latest/practices/precommit.html>`_.
-3) Install ``pandoc`` allows you to verify that automatic rendering of Jupyter notebooks
-   into documentation for ReadTheDocs works as expected. For more information, see
-   the Python Project Template documentation on
-   `Sphinx and Python Notebooks <https://lincc-ppt.readthedocs.io/en/latest/practices/sphinx.html#python-notebooks>`_.
-
+Geting Started
+========================================================================================
 
 .. toctree::
-   :hidden:
-
+   :maxdepth: 2
+   
    Home page <self>
-   API Reference <autoapi/index>
+   Installation <Installation>
    Tutorials <Tutorials>
+   API Reference <autoapi/index>
