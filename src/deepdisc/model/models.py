@@ -44,10 +44,10 @@ def return_lazy_model(cfg, freeze=True):
         for param in model.proposal_generator.parameters():
             param.requires_grad = True
 
-    model.to(cfg.train.device)
-    model = create_ddp_model(model, **cfg.train.ddp)
+        model.to(cfg.train.device)
+        model = create_ddp_model(model, **cfg.train.ddp)
 
-    return model
+        return model
 
 
 
@@ -562,6 +562,7 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
         self,
         num_components: int,
         zloss_factor: float,
+        coarse_bins: List[float],
         cmax: int,
         *,
         box_in_features: List[str],
@@ -595,7 +596,7 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
         self.zloss_factor = zloss_factor
         self.cmax = cmax
         
-        coarse_bins = np.linspace(0,3,10)
+        #coarse_bins = np.linspace(0,3,10)
         coarse_bins = torch.tensor(coarse_bins)        
         self.register_buffer('coarse_bins', coarse_bins, persistent=False)
 
@@ -644,7 +645,7 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
         #)
         
         positive = nonzero_tuple((gt_classes != -1) & (gt_classes != self.num_classes))[0]
-        positive = nonzero_tuple((gt_classes != -1) & (gt_classes != self.num_classes))[0]
+        #positive = nonzero_tuple((gt_classes != -1) & (gt_classes != self.num_classes))[0]
         #sampled_idxs = torch.cat([sampled_fg_idxs, sampled_bg_idxs], dim=0)
         return positive, gt_classes[positive]
         
@@ -785,7 +786,7 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
         if self.training:
             #print('proposals ', len(instances[0]))
             #proposals = add_ground_truth_to_proposals(targets, instances)
-            proposals = self.select_all_positive_proposals(instances, targets)
+            finstances = self.select_all_positive_proposals(instances, targets)
             
             #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs.npy')
             #sampled_zs = proposals[0].gt_redshift.detach().cpu().numpy()
@@ -793,16 +794,16 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
             #np.save('/home/g4merz/rail_deepdisc/sampled_zs.npy', szs)
             
             
-            #print('positive proposals', len(proposals[0]))
+            #print('positive proposals', len(finstances[0]))
             #proposals = proposals[:100]
             #print('proposals with gt', len(proposals[0]))
             #finstances, _ = select_foreground_proposals(instances, self.num_classes)
             #print('sampled foreground proposals', len(finstances[0]))
          
             #Add all gt bounding boxes for redshift regression
-            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+            #finstances, _ = select_foreground_proposals(proposals, self.num_classes)
 
-            #print('sampled foreground proposals', len(fproposals[0]))
+            #print('sampled foreground proposals', len(finstances[0]))
 
             instances = []
             for x in finstances:
@@ -812,11 +813,13 @@ class RedshiftPDFCasROIHeadsGoldUniform(CascadeROIHeads):
                 return 0
             
             instances = self.uniform_redshift_sample(instances)
-
+        
+        #print('gold sampled proposals', len(instances[0]))
         #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy')
         #sampled_zs = instances[0].gt_redshift.detach().cpu().numpy()
         #szs = np.concatenate([sz,sampled_zs])
         #np.save('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy', szs)
+        
         if self.redshift_pooler is not None:
             features = [features[f] for f in self.box_in_features]
             boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
