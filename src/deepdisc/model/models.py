@@ -44,10 +44,10 @@ def return_lazy_model(cfg, freeze=True):
         for param in model.proposal_generator.parameters():
             param.requires_grad = True
 
-        model.to(cfg.train.device)
-        model = create_ddp_model(model, **cfg.train.ddp)
+    model.to(cfg.train.device)
+    model = create_ddp_model(model, **cfg.train.ddp)
 
-        return model
+    return model
 
 
 
