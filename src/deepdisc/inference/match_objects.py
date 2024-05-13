@@ -347,7 +347,7 @@ def run_batched_match_redshift(dataloader, predictor, ids=False, blendedness=Fal
 
 
 
-def run_batched_get_object_coords(dataloader, predictor):
+def run_batched_get_object_coords(dataloader, predictor, oclass=True, gmm=False):
     """
     Test function not yet implemented for batch prediction
 
@@ -355,6 +355,11 @@ def run_batched_get_object_coords(dataloader, predictor):
     zpreds = []
     all_decs = []
     all_ras = []
+    
+    if gmm:
+        gmms =[]
+    if oclass:
+        oclasses=[]
 
     with torch.no_grad():
         for i, dataset_dicts in enumerate(dataloader):
@@ -366,12 +371,18 @@ def run_batched_get_object_coords(dataloader, predictor):
                 list(map(all_ras.append, ras))
                 list(map(all_decs.append, decs))
 
-                #pdfs = np.exp(outputs["instances"].pred_redshift_pdf.cpu().numpy())
-                #zpreds.append(pdfs)
+               
                 for dti in range(len(outputs['instances'])):
                     #ztrue = d["annotations"][int(gti)]["redshift"]
                     pdf = np.exp(outputs["instances"].pred_redshift_pdf[int(dti)].cpu().numpy())
                     zpreds.append(pdf)
                     
-    #print(zpreds)
-    return zpreds, all_ras, all_decs
+                    gmms.append(outputs['instances'].pred_gmm.cpu()[int(dti)].cpu().numpy())
+                    oclasses.append(outputs['instances'].pred_classes.cpu()[int(dti)].numpy())
+
+                    
+    if gmm:
+        return zpreds, all_ras, all_decs, oclasses, gmms
+    
+    else:
+        return zpreds, all_ras, all_decs, oclasses
