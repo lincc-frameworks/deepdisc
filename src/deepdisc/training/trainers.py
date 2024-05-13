@@ -132,7 +132,7 @@ def return_lazy_trainer(model, loader, optimizer, cfg, hooklist):
     return trainer
 
 
-def return_savehook(output_name):
+def return_savehook(output_name, save_period):
     """Returns a hook for saving the model
 
     Parameters
@@ -144,7 +144,8 @@ def return_savehook(output_name):
     -------
         a SaveHook
     """
-    saveHook = detectron_addons.SaveHook()
+    #saveHook = detectron_addons.SaveHook()
+    saveHook = detectron_addons.NewSaveHook(save_period)
     saveHook.set_output_name(output_name)
     return saveHook
 

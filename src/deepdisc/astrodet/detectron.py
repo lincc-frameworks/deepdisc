@@ -128,6 +128,34 @@ class SaveHook(HookBase):
         self.trainer.checkpointer.save(self.output_name)  # Note: Set the name of the output model here
 
 
+        
+        
+class NewSaveHook(HookBase):
+
+    """
+    This Hook saves the model during training
+
+    """
+    
+    output_name = "model_temp"
+
+    
+    def __init__(self, save_period):
+        self._period = save_period
+
+    def set_output_name(self, name):
+        self.output_name = name
+
+    #def after_train(self):
+    #    self.trainer.checkpointer.save(self.output_name)  # Note: Set the name of the output model here
+
+    def after_step(self):
+        next_iter = self.trainer.iter + 1
+        is_final = next_iter == self.trainer.max_iter
+        if is_final or (self._period > 0 and next_iter % self._period == 0):  # or (next_iter == 1):
+            print("saving", self.output_name)
+            self.trainer.checkpointer.save(f'{self.output_name}_{next_iter//self._period}')
+        
 #
 class LossEvalHook(HookBase):
 
