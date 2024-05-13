@@ -155,6 +155,9 @@ class NewSaveHook(HookBase):
         if is_final or (self._period > 0 and next_iter % self._period == 0):  # or (next_iter == 1):
             print("saving", self.output_name)
             self.trainer.checkpointer.save(f'{self.output_name}_{next_iter//self._period}')
+            if is_final:
+                self.trainer.checkpointer.save(self.output_name)
+
         
 #
 class LossEvalHook(HookBase):
