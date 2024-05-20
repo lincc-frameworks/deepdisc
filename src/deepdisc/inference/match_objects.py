@@ -73,18 +73,9 @@ def get_object_coords(dataset_dict, outputs):
     pred_boxes = outputs["instances"].pred_boxes
     pred_boxes = pred_boxes.to("cpu")
     
-    xs = []
-    ys = []
+    centers = outputs['instances'].pred_boxes.get_centers().cpu().numpy()
+    coords = wcs.pixel_to_world(centers[:,0],centers[:,1])
     
-    for box in pred_boxes:
-        w = box[2]-box[0]
-        h = box[3]-box[1]
-        x = box[0]+w//2
-        y = box[1]+h//2
-        xs.append(x)
-        ys.append(y)
-    
-    coords = wcs.pixel_to_world(xs,ys)
     ras = coords.ra.degree
     decs = coords.dec.degree
     return ras, decs
