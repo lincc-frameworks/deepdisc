@@ -89,10 +89,17 @@ Run on multiple machines:
     )
     run_args.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
     run_args.add_argument(
-        "--data-dir",
+        "--train-metadata",
         type=str,
         default="/home/shared/hsc/HSC/HSC_DR3/data/",
-        help="directory with data",
+        help="path to training data",
+    )
+    
+    run_args.add_argument(
+        "--eval-metadata",
+        type=str,
+        default="/home/shared/hsc/HSC/HSC_DR3/data/",
+        help="path to eval data",
     )
 
     run_args.add_argument("--eval-only", action="store_true", help="perform evaluation only")
@@ -110,9 +117,6 @@ Run on multiple machines:
     )
     run_args.add_argument("--run-name", type=str, default="Swin_test", help="output name for run")
     
-    # To differentiate the kind of run 
-    run_args.add_argument("--use-dc2", default=False, action="store_true")
-    run_args.add_argument("--use-redshift", default=False, action="store_true")
 
     # Add arguments for the machine specifications
     machine_args = parser.add_argument_group("Machine arguments")
