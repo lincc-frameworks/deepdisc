@@ -19,9 +19,6 @@ numclasses = len(metadata.classes)
 # ---------------------------------------------------------------------------- #
 # Get values from templates
 from ..COCO.cascade_mask_rcnn_swin_b_in21k_50ep import dataloader, model, train, lr_multiplier, optimizer
-from deepdisc.model.loaders import RedshiftDictMapper, RedshiftDictMapperEval, GoldRedshiftDictMapperEval
-
-
 import deepdisc.model.loaders as loaders
 from deepdisc.data_format.augment_image import dc2_train_augs, dc2_train_augs_full
 from deepdisc.data_format.image_readers import DC2ImageReader
@@ -70,9 +67,8 @@ for box_predictor in model.roi_heads.box_predictors:
 train.init_checkpoint = "/home/shared/hsc/detectron2/projects/ViTDet/model_final_246a82.pkl"
 
 optimizer.lr = 0.001
-dataloader.test.mapper = loaders.GoldRedshiftDictMapperEval
-dataloader.train.mapper = loaders.RedshiftDictMapper
-
+dataloader.test.mapper = loaders.DictMapper
+dataloader.train.mapper = loaders.DictMapper
 reader = DC2ImageReader()
 dataloader.imagereader = reader
 dataloader.epoch=epoch
