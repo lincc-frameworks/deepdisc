@@ -7,8 +7,8 @@ import numpy as np
 # ---------------------------------------------------------------------------- #
 # Local variables and metadata
 # ---------------------------------------------------------------------------- #
-bs = 2
-
+epoch=2
+bs=1
 metadata = OmegaConf.create() 
 metadata.classes = ["object"]
 
@@ -22,7 +22,12 @@ from ..COCO.cascade_mask_rcnn_swin_b_in21k_50ep import dataloader, model, train,
 from deepdisc.model.loaders import RedshiftDictMapper, RedshiftDictMapperEval, GoldRedshiftDictMapperEval
 
 
+import deepdisc.model.loaders as loaders
+from deepdisc.data_format.augment_image import dc2_train_augs, dc2_train_augs_full
+from deepdisc.data_format.image_readers import DC2ImageReader
+
 # Overrides
+dataloader.augs = dc2_train_augs
 dataloader.train.total_batch_size = bs
 
 model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
@@ -65,9 +70,12 @@ for box_predictor in model.roi_heads.box_predictors:
 train.init_checkpoint = "/home/shared/hsc/detectron2/projects/ViTDet/model_final_246a82.pkl"
 
 optimizer.lr = 0.001
-dataloader.test.mapper = GoldRedshiftDictMapperEval
-dataloader.train.mapper = RedshiftDictMapper
+dataloader.test.mapper = loaders.GoldRedshiftDictMapperEval
+dataloader.train.mapper = loaders.RedshiftDictMapper
 
+reader = DC2ImageReader()
+dataloader.imagereader = reader
+dataloader.epoch=epoch
 # ---------------------------------------------------------------------------- #
 # Yaml-style config (was formerly saved as a .yaml file, loaded to cfg_loader)
 # ---------------------------------------------------------------------------- #
@@ -93,7 +101,12 @@ SOLVER.CLIP_GRADIENTS.CLIP_TYPE = "norm"
 SOLVER.CLIP_GRADIENTS.NORM_TYPE = 5.0
 
 
-SOLVER.STEPS = []  # do not decay learning rate for retraining
+e1 = epoch * 15
+e2 = epoch * 25
+e3 = epoch * 30
+efinal = epoch * 50
+
+SOLVER.STEPS = [e1,e2,e3]  # do not decay learning rate for retraining
 SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
 SOLVER.WARMUP_ITERS = 0
-TEST.DETECTIONS_PER_IMAGE = 500
+SOLVER.MAX_ITER = efinal  # for DefaultTrainer
