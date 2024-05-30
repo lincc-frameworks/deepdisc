@@ -346,6 +346,7 @@ def run_batched_get_object_coords(dataloader, predictor, oclass=True, gmm=False)
     zpreds = []
     all_decs = []
     all_ras = []
+    scores = []
     
     if gmm:
         gmms =[]
@@ -370,10 +371,11 @@ def run_batched_get_object_coords(dataloader, predictor, oclass=True, gmm=False)
                     
                     gmms.append(outputs['instances'].pred_gmm.cpu()[int(dti)].cpu().numpy())
                     oclasses.append(outputs['instances'].pred_classes.cpu()[int(dti)].numpy())
+                    scores.append(outputs['instances'].scores.cpu()[int(dti)].numpy())
 
                     
     if gmm:
-        return zpreds, all_ras, all_decs, oclasses, gmms
+        return zpreds, all_ras, all_decs, oclasses, gmms, scores
     
     else:
-        return zpreds, all_ras, all_decs, oclasses
+        return zpreds, all_ras, all_decs, oclasses, scores
