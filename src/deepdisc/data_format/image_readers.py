@@ -176,7 +176,6 @@ class DC2ImageReader(ImageReader):
         image = np.transpose(image, axes=(1, 2, 0)).astype(np.float32)
         return image
 
-
 class HSCImageReader(ImageReader):
     """An ImageReader for HSC image files."""
 
@@ -209,4 +208,28 @@ class HSCImageReader(ImageReader):
         image[:, :, 0] = i
         image[:, :, 1] = r
         image[:, :, 2] = g
+        return image
+
+class RomanImageReader(ImageReader):
+    """An ImageReader for Roman image files."""
+
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def _read_image(self, filename):
+        """Read the image.
+
+        Parameters
+        ----------
+        filename : str
+            The filename indicating the image to read.
+
+        Returns
+        -------
+        im : numpy array
+            The image.
+        """
+        image = np.load(filename) # (4, 512, 512)
+        image = np.transpose(image, axes=(1, 2, 0)).astype(np.float32) # (512, 512, 4)
         return image
