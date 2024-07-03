@@ -28,7 +28,6 @@ from ..COCO.cascade_mask_rcnn_mvitv2_b_in21k_100ep import (
 
 # Overrides
 model.proposal_generator.anchor_generator.sizes = [[8], [16], [32], [64], [128]]
-dataloader.train.total_batch_size = bs
 model.roi_heads.num_classes = numclasses
 model.roi_heads.batch_size_per_image = 512
 
@@ -43,6 +42,16 @@ model.pixel_mean = [
     0.21245764,
 ]
 model.pixel_std = [2.9318833, 1.8443471, 2.581817, 3.5950038, 4.5809164, 7.302009]
+
+from deepdisc.data_format.image_readers import DC2ImageReader
+from deepdisc.data_format.augment_image import dc2_train_augs
+
+dataloader.train.total_batch_size = bs
+dataloader.epoch = 10
+reader = DC2ImageReader()
+dataloader.imagereader = reader
+dataloader.augs = dc2_train_augs
+
 
 # ---------------------------------------------------------------------------- #
 # Yacs-style config values
