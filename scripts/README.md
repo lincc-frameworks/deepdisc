@@ -1,7 +1,7 @@
 
 ## Training script:  
 
-This directory contains the script used to run the full training, ```run_model.py```  
+This directory contains the script used to run the full training, ```run_model.py```  This will work for .py configs, but not .yacs configs (yet)
 
 Run the script with ```python run_model.py --cfgfile $path_to_config --train-metadata $path_to_train_dicts --eval-metadata $path_to_eval_dicts --num-gpus $ngpu --run-name $name_of_run --output-dir $path_to_output.```  
 
@@ -15,5 +15,8 @@ The command line options are explained below
 - eval-metadata: The same as the training metadata, but for the evaluation set.
 - num-gpus: The number of gpus used to train the model.  Must be a multiple of the batch size specified in the config
 - run-name: A string prefix that will be used to save the outputs of the script such as model weights and loss curves
-- output-dir: The directory to save the outputs
+- output-dir: The directory to save the outputs  
+
+After training, inference can be done by loading a predictor (as in the demo notebook) with ```predictor = return_predictor_transformer(cfg)```.  You can use the same config that was used in training, but change the train.init_checkpoint path to the newly saved model.
+
 
