@@ -91,8 +91,8 @@ def main(args, freeze):
     efinal = epoch * 50
     
 
-    #val_per = epoch
-    val_per=5
+    val_per = epoch
+    #val_per=5
     
     model = return_lazy_model(cfg,freeze)
 
@@ -120,8 +120,8 @@ def main(args, freeze):
 
         trainer = return_lazy_trainer(model, loader, optimizer, cfg, hookList)
         trainer.set_period(epoch//2)
-        #trainer.train(0, e1)
-        trainer.train(0, 10)
+        trainer.train(0, e1)
+        #trainer.train(0, 10)
         if comm.is_main_process():
             np.save(output_dir + run_name + "_losses", trainer.lossList)
             np.save(output_dir + run_name + "_val_losses", trainer.vallossList)
@@ -147,8 +147,8 @@ def main(args, freeze):
 
         trainer = return_lazy_trainer(model, loader, optimizer, cfg, hookList)
         trainer.set_period(epoch//2)
-        #trainer.train(e1, efinal)
-        trainer.train(10, 20)
+        trainer.train(e1, efinal)
+        #trainer.train(10, 20)
         if comm.is_main_process():
             losses = np.load(output_dir + run_name + "_losses.npy")
             losses = np.concatenate((losses, trainer.lossList))
