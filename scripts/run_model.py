@@ -26,6 +26,7 @@ import torch
 # import some common detectron2 utilities
 from detectron2.config import LazyConfig, get_cfg
 from detectron2.engine import launch
+from detectron2.data import MetadataCatalog, DatasetCatalog
 
 from deepdisc.data_format.augment_image import hsc_test_augs, train_augs
 from deepdisc.data_format.image_readers import DC2ImageReader, HSCImageReader
@@ -63,6 +64,13 @@ def main(args, freeze):
     for key in cfg.get("MISC", dict()).keys():
         cfg[key] = cfg.MISC[key]
 
+    
+    if args.num_gpus==1 and not freeze:
+        DatasetCatalog.remove(cfg.DATASETS.TRAIN)
+        MetadataCatalog.remove(cfg.DATASETS.TRAIN)
+        DatasetCatalog.remove(cfg.DATASETS.TEST)
+        MetadataCatalog.remove(cfg.DATASETS.TEST)
+        
     # Register the data sets
     astrotrain_metadata = register_data_set(
         cfg.DATASETS.TRAIN, trainfile, thing_classes=cfg.metadata.classes
@@ -70,7 +78,7 @@ def main(args, freeze):
     astroval_metadata = register_data_set(
         cfg.DATASETS.TEST, evalfile, thing_classes=cfg.metadata.classes
     )
-    
+
     # Set the output directory
     cfg.OUTPUT_DIR = output_dir
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
@@ -83,8 +91,9 @@ def main(args, freeze):
     efinal = epoch * 50
     
 
-    val_per = epoch
-
+    #val_per = epoch
+    val_per=5
+    
     model = return_lazy_model(cfg,freeze)
 
     mapper = cfg.dataloader.train.mapper(
@@ -111,7 +120,8 @@ def main(args, freeze):
 
         trainer = return_lazy_trainer(model, loader, optimizer, cfg, hookList)
         trainer.set_period(epoch//2)
-        trainer.train(0, e1)
+        #trainer.train(0, e1)
+        trainer.train(0, 10)
         if comm.is_main_process():
             np.save(output_dir + run_name + "_losses", trainer.lossList)
             np.save(output_dir + run_name + "_val_losses", trainer.vallossList)
@@ -119,6 +129,7 @@ def main(args, freeze):
         return
             
     else:
+        
         cfg.train.init_checkpoint = os.path.join(output_dir, run_name + ".pth")
         cfg.SOLVER.BASE_LR = 0.0001
         cfg.SOLVER.MAX_ITER = efinal  # for DefaultTrainer
@@ -136,7 +147,8 @@ def main(args, freeze):
 
         trainer = return_lazy_trainer(model, loader, optimizer, cfg, hookList)
         trainer.set_period(epoch//2)
-        trainer.train(e1, efinal)
+        #trainer.train(e1, efinal)
+        trainer.train(10, 20)
         if comm.is_main_process():
             losses = np.load(output_dir + run_name + "_losses.npy")
             losses = np.concatenate((losses, trainer.lossList))
