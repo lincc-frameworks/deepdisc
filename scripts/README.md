@@ -7,6 +7,7 @@ Run the script with ```python run_model.py --cfgfile $path_to_config --train-met
 
 You can test this with the double/single_test.json files in ```/tests/deepdisc/test_data/dc2/``` and the config in ```/configs/solo/solo_swin.py```  You should download the pre-trained weights [here](https://dl.fbaipublicfiles.com/detectron2/ViTDet/COCO/cascade_mask_rcnn_swin_b_in21k/f342979038/model_final_246a82.pkl)
 
+Other pre-trained models using transformers available [here](https://github.com/facebookresearch/detectron2/tree/main/projects/ViTDet)
 
 The command line options are explained below  
 
