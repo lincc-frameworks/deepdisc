@@ -8,7 +8,7 @@ import numpy as np
 # Local variables and metadata
 # ---------------------------------------------------------------------------- #
 epoch=2
-bs=1
+bs=2
 metadata = OmegaConf.create() 
 metadata.classes = ["object"]
 
@@ -33,7 +33,15 @@ model.roi_heads.batch_size_per_image = 512
 
 model.roi_heads.num_classes = numclasses
 model.roi_heads.batch_size_per_image = 512
-model.backbone.bottom_up.in_chans = 6
+
+
+# ---------------------------------------------------------------------------- #
+#Change for different data sets
+
+#This is the number of color channels in the images
+model.backbone.bottom_up.in_chans = 6         
+
+#Take the averaged mean and standard deviations of each color channel in the test set
 model.pixel_mean = [
         0.05381286,
         0.04986344,
@@ -51,27 +59,29 @@ model.pixel_std = [
         7.302009,
 ]
 
-#model.roi_heads.num_components = 3
-#model.roi_heads.zloss_factor = 1
-#model.roi_heads.zbins = np.linspace(0,5,200)
-#model.roi_heads.weights = np.load('/home/g4merz/rail_deepdisc/configs/solo/zweights.npy')
-#model.roi_heads._target_ = RedshiftPDFCasROIHeads
-
+# ---------------------------------------------------------------------------- #
 model.proposal_generator.nms_thresh = 0.3
 
 for box_predictor in model.roi_heads.box_predictors:
     box_predictor.test_topk_per_image = 2000
     box_predictor.test_score_thresh = 0.5
     box_predictor.test_nms_thresh = 0.3
-    
+
+#The ImageNet1k pretrained weights file
 train.init_checkpoint = "/home/shared/hsc/detectron2/projects/ViTDet/model_final_246a82.pkl"
 
 optimizer.lr = 0.001
 dataloader.test.mapper = loaders.DictMapper
 dataloader.train.mapper = loaders.DictMapper
+
+# ---------------------------------------------------------------------------- #
+#Change for different data sets
 reader = DC2ImageReader()
 dataloader.imagereader = reader
+# ---------------------------------------------------------------------------- #
 dataloader.epoch=epoch
+
+
 # ---------------------------------------------------------------------------- #
 # Yaml-style config (was formerly saved as a .yaml file, loaded to cfg_loader)
 # ---------------------------------------------------------------------------- #
