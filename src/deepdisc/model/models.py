@@ -402,6 +402,188 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
 
 
         
+class RedshiftPDFCasROIHeadsGoldEBVGalsSpecSelect(CascadeROIHeads):
+    """CascadeROIHead with added redshift pdf capability.  Uses the image wcs and dustmaps to calculate ebv values for each box center 
+        Follows the detectron2 CascadeROIHead class init, except for
+
+    Parameters
+    ----------
+    num_components : int
+        Number of gaussian components in the Mixture Density Network
+    """
+
+    # def __init__(self, cfg, input_shape):
+    def __init__(
+        self,
+        num_components: int,
+        zloss_factor: float,
+        maglim: float,
+        *,
+        box_in_features: List[str],
+        box_pooler: ROIPooler,
+        box_heads: List[nn.Module],
+        box_predictors: List[nn.Module],
+        proposal_matchers: List[Matcher],
+        **kwargs,
+    ):
+        super().__init__(
+            box_in_features=box_in_features,
+            box_pooler=box_pooler,
+            box_heads=box_heads,
+            box_predictors=box_predictors,
+            proposal_matchers=proposal_matchers,
+            **kwargs,
+        )
+
+        self.redshift_pooler = ROIPooler(
+            output_size=7,
+            scales=tuple(k for k in [0.25, 0.125, 0.0625, 0.03125]),
+            sampling_ratio=0,
+            pooler_type="ROIAlignV2",
+        )
+
+        in_channels = 256
+        inshape = ShapeSpec(channels=in_channels, height=7, width=7)
+
+        self._output_size = (inshape.channels, inshape.height, inshape.width)
+        self.num_components = num_components
+        self.zloss_factor = zloss_factor
+        self.maglim = maglim
+        
+        self.redshift_fc = nn.Sequential(
+            nn.Linear(np.prod(self._output_size)+1, 1024),
+            nn.Tanh(),
+            nn.Linear(1024, 64),
+            nn.Tanh(),
+            nn.Linear(64, self.num_components * 3),
+            #nn.Softplus()
+        )
+        
+
+        '''
+        self.redshift_fc = nn.Sequential(
+            nn.Linear(np.prod(self._output_size), 64),
+            nn.Tanh(),
+            nn.Linear(64, 16),
+            nn.Tanh(),
+            nn.Linear(16, self.num_components * 3),
+            #nn.Softplus()
+        )
+        '''
+        
+        self.sfd = SFDQuery()
+
+    def output_pdf(self, inputs):
+        pdf = Independent(
+            MixtureSameFamily(
+                mixture_distribution=Categorical(logits=inputs[..., : self.num_components]),
+                component_distribution=Normal(
+                    inputs[..., self.num_components : 2 * self.num_components],
+                    #F.softplus(inputs[..., 2 * self.num_components :]),
+                    torch.exp(inputs[..., 2 * self.num_components :]),
+                ),
+            ),
+            0,
+        )
+        return pdf
+
+    def _forward_redshift(self, features, instances, targets=None, image_wcs=None):
+        
+        if self.training:
+            #Add all gt bounding boxes for redshift regression
+            proposals = add_ground_truth_to_proposals(targets, instances)
+            finstances, _ = select_foreground_proposals(proposals, self.num_classes)
+
+            #finstances, _ = select_foreground_proposals(instances, self.num_classes)
+
+            instances = []
+            for x in finstances:
+                gold_inst = x[(x.gt_magi < self.maglim) & (x.gt_redshift!=0) &(x.gt_spec_select==1)]
+                instances.append(gold_inst)
+            if len(instances)==0:
+                return 0
+            
+        #print('instances ', len(instances[0]))
+        #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy')
+        #sampled_zs = instances[0].gt_redshift.detach().cpu().numpy()
+        #szs = np.concatenate([sz,sampled_zs])
+        #np.save('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy', szs)
+                
+        if self.redshift_pooler is not None:
+            features = [features[f] for f in self.box_in_features]
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances]
+            features = self.redshift_pooler(features, boxes)
+        
+        features = nn.Flatten()(features)
+        
+        num_instances_per_img = [len(i) for i in instances]
+        inds = np.cumsum(num_instances_per_img)
+        
+        #Add EBV
+        centers = cat([box.get_centers().cpu() for box in boxes]) # Center box coords for wcs             
+        #calculates coords for box centers in each image. Need to split and cumsum to make sure the box centers get the right wcs  
+        coords = [WCS(wcs).pixel_to_world(np.split(centers,inds)[i][:,0],np.split(centers,inds)[i][:,1]) for i, wcs in enumerate(image_wcs)] 
+        #use dustamps to get all ebv with the associated coords
+        ebvvec = [torch.tensor(self.sfd(coordsi)).to(features.device) for coordsi in coords]
+        ebvs = cat(ebvvec)
+        #gather into a tensor and add as a feature for the input to the fully connected network
+        features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
+
+        if self.training:
+            
+            fcs = self.redshift_fc(features)
+            pdfs = self.output_pdf(fcs)
+
+            gt_redshifts = cat([x.gt_redshift for x in instances])
+            nlls = -pdfs.log_prob(gt_redshifts) * self.zloss_factor
+
+            return {"redshift_loss": torch.mean(nlls)}
+
+        else:
+            # print(len(instances))
+            # print(len(instances[0]))
+            if len(instances[0]) == 0:
+                return instances
+            
+            fcs = self.redshift_fc(features)
+            pdfs = self.output_pdf(fcs)
+            zs = torch.tensor(np.linspace(0, 3, 300)).to(fcs.device)
+            nin = torch.as_tensor(np.array([num_instances_per_img]))
+            #probs = torch.zeros((num_instances_per_img[0], 200)).to(fcs.device)
+
+
+            probs = torch.zeros((torch.sum(nin), 300)).to(fcs.device)
+            for j, z in enumerate(zs):
+                probs[:, j] = pdfs.log_prob(z)
+
+            for i, pred_instances in enumerate(instances):
+                pred_instances.pred_redshift_pdf = np.split(probs,inds)[i]
+                pred_instances.pred_gmm =  np.split(fcs,inds)[i]
+
+            return instances
+
+    def forward(self, images, features, proposals, targets=None, image_wcs=None):
+        del images
+        if self.training:
+            proposals = self.label_and_sample_proposals(proposals, targets)
+
+        if self.training:
+            # Need targets to box head
+            losses = self._forward_box(features, proposals, targets)
+            losses.update(self._forward_mask(features, proposals))
+            losses.update(self._forward_redshift(features, proposals, targets, image_wcs))
+            #losses.update(self._forward_redshift(features, proposals))
+            losses.update(self._forward_keypoint(features, proposals))
+            return proposals, losses
+        else:
+            pred_instances = self._forward_box(features, proposals)
+            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self._forward_redshift(features, pred_instances, image_wcs=image_wcs)
+            return pred_instances, {}
+
+        
+        
+        
         
 class RedshiftPDFCasROIHeadsGoldEBVGals(CascadeROIHeads):
     """CascadeROIHead with added redshift pdf capability.  Uses the image wcs and dustmaps to calculate ebv values for each box center 
