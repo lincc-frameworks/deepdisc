@@ -477,8 +477,16 @@ class RedshiftDictMapper(DataMapper):
         instances = utils.annotations_to_instances(annos, image.shape[1:])
 
         instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
+        
+        instances.gt_imageid = torch.tensor([dataset_dict["image_id"] for a in annos])
 
         instances = utils.filter_empty_instances(instances)
+        
+        
+        if 'wcs' in dataset_dict.keys():
+            wcs = dataset_dict["wcs"]
+        else:
+            wcs=None
         
         return {
             # create the format that the model expects
@@ -489,6 +497,7 @@ class RedshiftDictMapper(DataMapper):
             "image_id": dataset_dict["image_id"],
             "instances": instances,
             #"annotations": annos
+            "wcs": wcs
         }
     
     

@@ -282,7 +282,7 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
         self.zn = zn
         
         self.redshift_fc = nn.Sequential(
-            nn.Linear(np.prod(self._output_size), 1024),
+            nn.Linear(np.prod(self._output_size)+1, 1024),
             nn.Tanh(),
             nn.Linear(1024, 64),
             nn.Tanh(),
@@ -291,16 +291,7 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
         )
         
 
-        '''
-        self.redshift_fc = nn.Sequential(
-            nn.Linear(np.prod(self._output_size), 64),
-            nn.Tanh(),
-            nn.Linear(64, 16),
-            nn.Tanh(),
-            nn.Linear(16, self.num_components * 3),
-            #nn.Softplus()
-        )
-        '''
+        self.sfd = SFDQuery()
 
         
         
@@ -318,14 +309,12 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
         )
         return pdf
 
-    def _forward_redshift(self, features, instances, targets=None):
+    def _forward_redshift(self, features, instances, targets=None, image_wcs=None):
         
         if self.training:
             #Add all gt bounding boxes for redshift regression
             proposals = add_ground_truth_to_proposals(targets, instances)
             finstances, _ = select_foreground_proposals(proposals, self.num_classes)
-
-            #finstances, _ = select_foreground_proposals(instances, self.num_classes)
 
             instances = []
             for x in finstances:
@@ -334,7 +323,6 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
             if len(instances)==0:
                 return 0
             
-        #print('instances ', len(instances[0]))
         #sz = np.load('/home/g4merz/rail_deepdisc/sampled_zs_gold.npy')
         #sampled_zs = instances[0].gt_redshift.detach().cpu().numpy()
         #szs = np.concatenate([sz,sampled_zs])
@@ -348,6 +336,18 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
         features = nn.Flatten()(features)
         
         num_instances_per_img = [len(i) for i in instances]
+        inds = np.cumsum(num_instances_per_img)
+
+        
+        #Add EBV
+        centers = cat([box.get_centers().cpu() for box in boxes]) # Center box coords for wcs             
+        #calculates coords for box centers in each image. Need to split and cumsum to make sure the box centers get the right wcs  
+        coords = [WCS(wcs).pixel_to_world(np.split(centers,inds)[i][:,0],np.split(centers,inds)[i][:,1]) for i, wcs in enumerate(image_wcs)] 
+        #use dustamps to get all ebv with the associated coords
+        ebvvec = [torch.tensor(self.sfd(coordsi)).to(features.device) for coordsi in coords]
+        ebvs = cat(ebvvec)
+        #gather into a tensor and add as a feature for the input to the fully connected network
+        features = torch.cat((features, ebvs.unsqueeze(1)), dim=-1)
 
         if self.training:
             fcs = self.redshift_fc(features)
@@ -381,7 +381,7 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
 
             return instances
 
-    def forward(self, images, features, proposals, targets=None):
+    def forward(self, images, features, proposals, targets=None, image_wcs=None):
         del images
         if self.training:
             proposals = self.label_and_sample_proposals(proposals, targets)
@@ -390,14 +390,14 @@ class RedshiftPDFCasROIHeadsJWST(CascadeROIHeads):
             # Need targets to box head
             losses = self._forward_box(features, proposals, targets)
             losses.update(self._forward_mask(features, proposals))
-            losses.update(self._forward_redshift(features, proposals, targets))
+            losses.update(self._forward_redshift(features, proposals, targets, image_wcs))
             #losses.update(self._forward_redshift(features, proposals))
             losses.update(self._forward_keypoint(features, proposals))
             return proposals, losses
         else:
             pred_instances = self._forward_box(features, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            pred_instances = self._forward_redshift(features, pred_instances)
+            pred_instances = self._forward_redshift(features, pred_instances, image_wcs=image_wcs)
             return pred_instances, {}
 
 

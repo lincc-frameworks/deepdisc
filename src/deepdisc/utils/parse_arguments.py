@@ -193,7 +193,8 @@ def make_rail_informer_arg_parser():
     parser.add_argument("--trainfile", type=str, help='path to the training file of images')
     parser.add_argument("--metadatafile", type=str, help='path to the metadata file for images')
     parser.add_argument("--batch-size", default=2, type=int, help='batch size for training')
-    
+    parser.add_argument("--num-gpus", default=2, type=int, help='number of gpus for parallel training')
+
     return parser
 
 

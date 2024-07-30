@@ -252,6 +252,25 @@ def _create_text_labels(classes, scores, class_names, is_crowd=None):
     return labels
 
 
+
+def _create_custom_text_labels(values):
+    """
+    Args:
+        classes (list[int] or None):
+        scores (list[float] or None):
+        class_names (list[str] or None):
+        is_crowd (list[bool] or None):
+
+    Returns:
+        list[str] or None
+    """
+        
+    labels = [str(i) for i in values]
+        
+    return labels
+
+
+
 class VisImage:
     def __init__(self, img, scale=1.0):
         """
@@ -376,7 +395,7 @@ class Visualizer:
         self._instance_mode = instance_mode
         self.keypoint_threshold = _KEYPOINT_THRESHOLD
 
-    def draw_instance_predictions(self, predictions, alpha=0.5, lf=True, ls="-", boxf=False):
+    def draw_instance_predictions(self, predictions, alpha=0.5, lf=True, ls="-", boxf=False, custom_labels=None):
         """
         Draw instance-level prediction results on an image.
 
@@ -389,10 +408,15 @@ class Visualizer:
             output (VisImage): image object with visualizations.
         """
         boxes = predictions.pred_boxes if predictions.has("pred_boxes") else None
+        
         scores = predictions.scores if predictions.has("scores") else None
         classes = predictions.pred_classes.tolist() if predictions.has("pred_classes") else None
         if lf:
-            labels = _create_text_labels(classes, scores, self.metadata.get("thing_classes", None))
+            if custom_labels is None:
+                labels = _create_text_labels(classes, scores, self.metadata.get("thing_classes", None))
+            else:
+                labels = _create_custom_text_labels(custom_labels)
+
         else:
             labels = None
         keypoints = predictions.pred_keypoints if predictions.has("pred_keypoints") else None
@@ -738,7 +762,8 @@ class Visualizer:
                         text_pos = (x0, y1)
 
                 height_ratio = (y1 - y0) / np.sqrt(self.output.height * self.output.width)
-                lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
+                #lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
+                lighter_color = self._change_color_brightness(color, brightness_factor=1.0)
                 font_size = np.clip((height_ratio - 0.02) / 0.08 + 1, 1.2, 2) * 0.5 * self._default_font_size
                 self.draw_text(
                     labels[i],
