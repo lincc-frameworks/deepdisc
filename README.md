@@ -1,5 +1,5 @@
 # DeepDISC
-Using deep learning for Detection, Instance Segmentation, and Classification on astornomical survey images.
+Using deep learning for Detection, Instance Segmentation, and Classification on astronomical survey images.
 
 *Reference Paper:* [Merz et al. 2023](https://academic.oup.com/mnras/article/526/1/1122/7273850)
 
