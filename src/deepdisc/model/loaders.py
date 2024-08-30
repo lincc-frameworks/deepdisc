@@ -784,8 +784,7 @@ class WCSDictmapper(DataMapper):
         }
 
     
-    
-class RedshiftEBVDictMapper(DataMapper):
+class RedshiftDictMapperRemove(DataMapper):
     def __init__(self, *args, **kwargs):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
@@ -806,6 +805,7 @@ class RedshiftEBVDictMapper(DataMapper):
         dataset_dict = copy.deepcopy(dataset_dict)
         key = self.km(dataset_dict)
         image = self.IR(key)
+        
 
         # Data Augmentation
         auginput = T.AugInput(image)
@@ -817,20 +817,29 @@ class RedshiftEBVDictMapper(DataMapper):
 
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
+        
+        image[1]=torch.zeros(image[1].shape)
 
         annos = [
             utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
             for annotation in dataset_dict.pop("annotations")
-            if annotation["redshift"] != 0.0
+            #if annotation["redshift"] != 0.0
         ]
 
         instances = utils.annotations_to_instances(annos, image.shape[1:])
 
         instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
-        instances.gt_ebv = torch.tensor([a["EBV"] for a in annos])
+        
+        instances.gt_imageid = torch.tensor([dataset_dict["image_id"] for a in annos])
 
         instances = utils.filter_empty_instances(instances)
-
+        
+        
+        if 'wcs' in dataset_dict.keys():
+            wcs = dataset_dict["wcs"]
+        else:
+            wcs=None
+        
         return {
             # create the format that the model expects
             "image": image,
@@ -840,6 +849,7 @@ class RedshiftEBVDictMapper(DataMapper):
             "image_id": dataset_dict["image_id"],
             "instances": instances,
             #"annotations": annos
+            "wcs": wcs
         }
 
     

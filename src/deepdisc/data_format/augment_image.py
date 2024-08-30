@@ -6,7 +6,7 @@ import numpy as np
 
 import deepdisc.astrodet.detectron as detectron_addons
 import random
-
+import copy
 
 
 LAMBDA_EFFS = [3671,4827,6223,7546,8691,9712]
@@ -31,6 +31,29 @@ def redden(image, rng_seed=None):
     image = np.float32(image*(10.**(-A_EBV*new_ebv/2.5)))
     return image
 
+
+
+def filter_dropout(image):
+    """
+    Parameters
+    ----------
+    image: ndarray
+    rng_seed : np.random.Generator
+        Random state that is seeded. if none, use machine entropy.
+
+    Returns
+    -------
+    augmented image
+
+    """
+    image_drop = copy.copy(image)
+    print(image_drop.shape)
+    filt = np.random.choice(np.arange(0,image.shape[-1]))
+    image_drop[:,:,filt] = np.zeros(image.shape[:-1])
+    if np.all(image_drop==0):
+        return image
+    else:
+        return image_drop
 
 def gaussblur(image, rng_seed=None):
     """
@@ -246,7 +269,7 @@ def dc2_train_augs_full(image):
     return augs
 
 
-def hsc_test_augs(image):
+def jwst_dropout_augs(image):
     """Get the augmentation list
 
     Parameters
@@ -256,17 +279,22 @@ def hsc_test_augs(image):
 
     Returns
     -------
-    augs: detectron2 AugmentationList
-        The augs for hsc testing.  Set to 50% Crop due to memory constraints
+    augs: detectron_addons.KRandomAugmentationList
+        The list of augs for training.  Set to RandomRotation, RandomFlip, RandomCrop
     """
-    augs = T.AugmentationList(
+
+    augs = detectron_addons.KRandomAugmentationList(
         [
-            T.CropTransform(
-                image.shape[1] // 4,
-                image.shape[0] // 4,
-                image.shape[1] // 2,
-                image.shape[0] // 2,
-            )
-        ]
+            # my custom augs
+            T.RandomRotation([-90, 90, 180], sample_style="choice"),
+            T.RandomFlip(prob=0.5),
+            T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+            detectron_addons.CustomAug(filter_dropout,prob=1.0),
+            #detectron_addons.CustomAug(redden,prob=1.0),
+
+        ],
+        k=-1,
+        cropaug=None,
+        #cropaug=T.RandomCrop("relative", (0.5, 0.5))
     )
     return augs
