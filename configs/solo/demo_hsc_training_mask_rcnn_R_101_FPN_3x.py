@@ -1,6 +1,7 @@
 """solo_demo_hsc_training_mask_rcnn_R_101_FPN_3x"""
 
 from omegaconf import OmegaConf
+from ..COCO.cascade_mask_rcnn_swin_b_in21k_50ep import dataloader, train, lr_multiplier, optimizer
 
 # ---------------------------------------------------------------------------- #
 # Local variables and metadata
