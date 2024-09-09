@@ -783,8 +783,7 @@ class WCSDictmapper(DataMapper):
             "wcs": dataset_dict['wcs']
         }
 
-    
-class RedshiftDictMapperRemove(DataMapper):
+class RedshiftDictMapperJWST(DataMapper):
     def __init__(self, *args, **kwargs):
         # Pass arguments to the parent function.
         super().__init__(*args, **kwargs)
@@ -805,7 +804,6 @@ class RedshiftDictMapperRemove(DataMapper):
         dataset_dict = copy.deepcopy(dataset_dict)
         key = self.km(dataset_dict)
         image = self.IR(key)
-        
 
         # Data Augmentation
         auginput = T.AugInput(image)
@@ -817,8 +815,6 @@ class RedshiftDictMapperRemove(DataMapper):
 
         transform = augs(auginput)
         image = torch.from_numpy(auginput.image.copy().transpose(2, 0, 1))
-        
-        image[1]=torch.zeros(image[1].shape)
 
         annos = [
             utils.transform_instance_annotations(annotation, [transform], image.shape[1:])
@@ -831,6 +827,9 @@ class RedshiftDictMapperRemove(DataMapper):
         instances.gt_redshift = torch.tensor([a["redshift"] for a in annos])
         
         instances.gt_imageid = torch.tensor([dataset_dict["image_id"] for a in annos])
+        
+        instances.gt_num_missing = torch.tensor([a["num_missing"] for a in annos])
+
 
         instances = utils.filter_empty_instances(instances)
         
@@ -851,7 +850,7 @@ class RedshiftDictMapperRemove(DataMapper):
             #"annotations": annos
             "wcs": wcs
         }
-
+    
     
 
 def return_train_loader(cfg, mapper):

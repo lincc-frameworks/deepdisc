@@ -210,3 +210,68 @@ class HSCImageReader(ImageReader):
         image[:, :, 1] = r
         image[:, :, 2] = g
         return image
+
+    
+class RAILImageReader(ImageReader):
+    """An ImageReader for RAIL image files."""
+
+    def __init__(self, *args, **kwargs):
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+
+    def _read_image(self, filename):
+        """Read the image.
+
+        Parameters
+        ----------
+        filename : str
+            The filename indicating the image to read.
+
+        Returns
+        -------
+        im : numpy array
+            The image.
+        """
+        file = filename.split("/")[-1].split(".")[0]
+        base = os.path.dirname(filename)
+        fn = os.path.join(base, file) + ".npy"
+        image = np.load(fn)
+        image = np.transpose(image, axes=(1, 2, 0)).astype(np.float32)
+        return image
+    
+class RAILImageReaderDrop(ImageReader):
+    """An ImageReader for RAIL image files."""
+
+    def __init__(self, dropfilt, *args, **kwargs):
+        
+        self.dropfilt=dropfilt
+
+        # Pass arguments to the parent function.
+        super().__init__(*args, **kwargs)
+        
+
+
+    def _read_image(self, filename):
+        """Read the image.
+
+        Parameters
+        ----------
+        filename : str
+            The filename indicating the image to read.
+
+        Returns
+        -------
+        im : numpy array
+            The image.
+        """
+        
+        #dropfilt = self.scalekwargs['dropfilt']
+        
+        file = filename.split("/")[-1].split(".")[0]
+        base = os.path.dirname(filename)
+        fn = os.path.join(base, file) + ".npy"
+        image = np.load(fn)
+        image = np.transpose(image, axes=(1, 2, 0)).astype(np.float32)
+        #print(self.dropfilt)
+        image[:,:,self.dropfilt] = np.zeros(image[:,:,self.dropfilt].shape)
+        return image

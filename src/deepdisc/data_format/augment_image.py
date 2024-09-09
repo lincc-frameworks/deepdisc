@@ -47,7 +47,6 @@ def filter_dropout(image):
 
     """
     image_drop = copy.copy(image)
-    print(image_drop.shape)
     filt = np.random.choice(np.arange(0,image.shape[-1]))
     image_drop[:,:,filt] = np.zeros(image.shape[:-1])
     if np.all(image_drop==0):
