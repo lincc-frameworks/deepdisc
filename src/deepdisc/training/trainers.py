@@ -20,7 +20,7 @@ class LazyAstroTrainer(SimpleTrainer):
         self.checkpointer = checkpointer.DetectionCheckpointer(
             # Assume you want to save checkpoints together with logs/statistics
             model,
-            cfg.OUTPUT_DIR,
+            cfg.OUTPUT_DIR, # save checkpoint with loss_list
         )
         # load weights
         self.checkpointer.load(cfg.train.init_checkpoint)

@@ -42,7 +42,6 @@ def get_predictions(dataset_dict, imreader, key_mapper, predictor):
         outputs: list(Intances)
             The list of detected object Instances
     """
-
     key = key_mapper(dataset_dict)
     img = imreader(key)
     outputs = predictor(img)

@@ -43,6 +43,13 @@ def test_read_dc2_data(dc2_single_test_file):
     assert img.shape[1] == 525
     assert img.shape[2] == 6
 
+def test_read_roman_data(roman_single_test_file):
+    """Test that we can read the test Roman data."""
+    ir = RomanImageReader(norm="raw")
+    img = ir(dc2_single_test_file)
+    assert img.shape[0] == 525
+    assert img.shape[1] == 525
+    assert img.shape[2] == 4
 
 def test_lupton_base_case(dc2_single_test_file):
     """Test that we can call lupton scaling without crashing"""
