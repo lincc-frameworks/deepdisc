@@ -9,7 +9,11 @@ from detectron2.data import detection_utils as utils
 import deepdisc.astrodet.astrodet as toolkit
 import deepdisc.astrodet.detectron as detectron_addons
 from astropy.wcs import WCS
-
+import h5py
+from torch.utils.data import DataLoader, Dataset
+import torch.utils.data as torchdata
+from detectron2.data.samplers import TrainingSampler
+#from detectron2.data.common ToIterableDataset
 
 class DataMapper:
     """Base class that will map data to the format necessary for the model
@@ -851,6 +855,44 @@ class RedshiftDictMapperJWST(DataMapper):
             "wcs": wcs
         }
     
+
+class ImageZDataset(Dataset):
+    def __init__(self, path, group='data',augmentations=None):
+        self.path = path
+        self.group=group
+        self.augmentations = augmentations
+        #self._open_file()
+
+
+    def _open_file(self):
+        #print('Loading Data')
+        self.file = h5py.File(self.path, 'r')
+
+    def __len__(self):
+        with h5py.File(self.path, 'r') as _f:
+          size = len(_f[self.group]['redshift'])
+          #size = _f
+        return size
+
+    def __getitem__(self, idx):
+        self._open_file()
+        image = self.file[self.group]['image'][idx]
+        redshift = self.file[self.group]['redshift'][idx]
+        #print(len(self.transform(image)))
+        self.file.close()
+        if self.augmentations is not None:
+            image_t = np.transpose(image,axes=(1,2,0))
+            auginput = T.AugInput(image_t)
+            augs = self.augmentations(image_t)
+            transform = augs(auginput)
+            augimage_t = np.transpose(auginput.image.copy(),axes=(2,0,1))
+            #return (torch.tensor(augimage_t).to('cuda'), torch.tensor(redshift).to('cuda'))
+            return torch.tensor(augimage_t), torch.tensor(redshift)
+
+        else:
+            #return torch.tensor(image).to('cuda'), torch.tensor(redshift).to('cuda')
+            return torch.tensor(image), torch.tensor(redshift)
+
     
 
 def return_train_loader(cfg, mapper):
@@ -887,3 +929,31 @@ def return_test_loader(cfg, mapper):
     """
     loader = data.build_detection_test_loader(cfg, cfg.DATASETS.TEST, mapper=mapper)
     return loader
+
+
+def return_custom_train_loader(dataset,batch_size=4, distributed=False):
+    
+    if distributed:
+        datasetI = ToIterableDataset(dataset, sampler, shard_chunk_size=batch_size)
+        
+        loader = torchdata.DataLoader(
+                    dataset,
+                    batch_size=batch_size,
+                    drop_last=True,
+                    num_workers=0,
+                    #worker_init_fn=worker_init_reset_seed,
+                    #prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    persistent_workers=False,
+                    pin_memory=True,
+                    sampler=torchdata.distributed.DistributedSampler(dataset,shuffle=True)
+                )
+    
+    else:
+        loader = torchdata.DataLoader(
+                dataset,
+                batch_size=batch_size,
+                shuffle=True
+            )
+
+    return loader
+

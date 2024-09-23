@@ -199,6 +199,51 @@ def make_rail_informer_arg_parser():
 
 
 
+def make_pretrain_arg_parser():
+    """Create the parser for DeepDisc inference, including common arguments used by
+    detectron2 users.
+
+    Returns
+    -------
+    parser : ArgumentParser
+        The argument parser.
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--config", type=str, help="path to config file")
+    parser.add_argument("--output-dir", type=str, metavar="DIRECTORY", help="output directory for informer model")
+    parser.add_argument("--run-name", type=str, help="name of the run, used as a regex in the saved model")
+    parser.add_argument("--trainfile", type=str, help='path to the training file of images')
+    parser.add_argument("--metadatafile", type=str, help='path to the metadata file for images')
+    parser.add_argument("--batch-size", default=2, type=int, help='batch size for training')
+    parser.add_argument("--num-gpus", default=2, type=int, help='number of gpus for parallel training')
+    
+    # Add a section of advanced arguments.
+    adv_args = parser.add_argument_group("Advanced arguments")
+
+    # PyTorch still may leave orphan processes in multi-gpu training.
+    # Therefore we use a deterministic way to obtain port,
+    # so that users are aware of orphan processes by seeing the port occupied.
+    port = 2**15 + 2**14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2**14
+    adv_args.add_argument(
+        "--dist-url",
+        default="tcp://127.0.0.1:{}".format(port),
+        help="initialization URL for pytorch distributed backend. See "
+        "https://pytorch.org/docs/stable/distributed.html for details.",
+    )
+    
+    adv_args.add_argument("--num-machines", type=int, default=1, help="total number of machines")
+    adv_args.add_argument(
+        "--machine-rank",
+        type=int,
+        default=0,
+        help="the rank of this machine (unique per machine)",
+    )
+
+
+    return parser
+
+
 
 
 def dtype_from_args(dt=32):

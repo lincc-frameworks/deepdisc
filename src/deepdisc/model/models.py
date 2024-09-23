@@ -2211,6 +2211,26 @@ class RedshiftPDFCasROIHeadsUniform(CascadeROIHeads):
         
 
         
+class RedshiftProjectionHead(nn.Module):
+    def __init__(self,input_shape):
+        super().__init__()
+        self.redshift_head = nn.Sequential(
+                nn.Linear(np.prod(input_shape), 1024),
+                nn.Tanh(),
+                nn.Linear(1024, 1)
+                #nn.Softplus()
+            )
+        
+    def forward(self, features, labels):    
+        features = nn.Flatten()(features)
+        pred_z = self.redshift_head(features)
+        diff = (pred_z - labels)
+        return {"redshift_loss": torch.square(diff).mean()}
+ 
+
+        
+        
+        
 class RedshiftPointCasROIHeads(CascadeROIHeads):
     """CascadeROIHeads with added redshift point estimate capability.  Follows the detectron2 CascadeROIHeads class init"""
 

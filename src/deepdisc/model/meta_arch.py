@@ -10,6 +10,8 @@ from detectron2.layers import move_device_like
 from detectron2.structures import ImageList, Instances
 from detectron2.utils.events import get_event_storage
 from detectron2.utils.logger import log_first_n
+from detectron2.layers import cat
+
 
 from detectron2.modeling.backbone import Backbone, build_backbone
 from detectron2.modeling.postprocessing import detector_postprocess
@@ -235,6 +237,175 @@ class GeneralizedRCNNWCS(nn.Module):
             self.backbone.size_divisibility,
             padding_constraints=self.backbone.padding_constraints,
         )
+        return images
+
+    @staticmethod
+    def _postprocess(instances, batched_inputs: List[Dict[str, torch.Tensor]], image_sizes):
+        """
+        Rescale the output instances to the target size.
+        """
+        # note: private function; subject to changes
+        processed_results = []
+        for results_per_image, input_per_image, image_size in zip(
+            instances, batched_inputs, image_sizes
+        ):
+            height = input_per_image.get("height", image_size[0])
+            width = input_per_image.get("width", image_size[1])
+            r = detector_postprocess(results_per_image, height, width)
+            processed_results.append({"instances": r})
+        return processed_results
+
+
+
+
+class Backbone(nn.Module):
+    """
+    Backbone model meant for pre-training.
+    """
+
+    #@configurable
+    def __init__(
+        self,
+        *,
+        backbone: nn.Module,
+        feature_level: str = None,
+        projection_head: nn.Module,
+        pixel_mean: Tuple[float],
+        pixel_std: Tuple[float],
+        input_format: Optional[str] = None,
+    ):
+        """
+        Args:
+            backbone: a backbone module, must follow detectron2's backbone interface
+            input_format: describe the meaning of channels of input. Needed by visualization
+            vis_period: the period to run visualization. Set to 0 to disable.
+        """
+        super().__init__()
+        self.backbone = backbone
+        self.projection_head = projection_head
+        self.feature_level = feature_level
+
+        self.input_format = input_format
+        
+
+        self.register_buffer("pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False)
+        self.register_buffer("pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
+        assert (
+            self.pixel_mean.shape == self.pixel_std.shape
+        ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
+
+
+    @property
+    def device(self):
+        return self.pixel_mean.device
+
+    def _move_to_current_device(self, x):
+        return move_device_like(x, self.pixel_mean)
+
+
+    def forward(self, batched_inputs: List[Tuple[torch.Tensor, torch.Tensor]]):
+        """
+        Args:
+            batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
+                Each item in the list contains the image and corresponding label.
+                For now, each item in the list is a tuple that contains:
+
+                * image: Tensor, image in (C, H, W) format.
+                * label (optional):`
+                
+        Returns:
+            list[labels]:
+                Each item is the predicted label for one input image.
+        """
+        if not self.training:
+            return self.inference(batched_inputs)
+
+        #images = batched_inputs[0]
+        #labels = batched_inputs[1]
+        
+        images = torch.stack([d[0] for d in batched_inputs])
+        labels = torch.tensor([d[1] for d in batched_inputs]).to('cuda')
+
+        #print(images.device,labels.device)
+        
+        images = self.preprocess_image(images)
+        
+        
+        features = self.backbone(images)
+        
+
+        if self.feature_level is not None:
+            features = features[self.feature_level]
+        
+
+        loss = self.projection_head(features, labels)
+    
+        losses = {}
+        losses.update(loss)
+        
+        return losses
+
+    def inference(
+        self,
+        batched_inputs: List[Dict[str, torch.Tensor]],
+        detected_instances: Optional[List[Instances]] = None,
+        do_postprocess: bool = True,
+    ):
+        """
+        Run inference on the given inputs.
+
+        Args:
+            batched_inputs (list[dict]): same as in :meth:`forward`
+            detected_instances (None or list[Instances]): if not None, it
+                contains an `Instances` object per image. The `Instances`
+                object contains "pred_boxes" and "pred_classes" which are
+                known boxes in the image.
+                The inference will then skip the detection of bounding boxes,
+                and only predict other per-ROI outputs.
+            do_postprocess (bool): whether to apply post-processing on the outputs.
+
+        Returns:
+            When do_postprocess=True, same as in :meth:`forward`.
+            Otherwise, a list[Instances] containing raw network outputs.
+        """
+        assert not self.training
+        if "wcs" in batched_inputs[0]:
+            image_wcs = [x["wcs"] for x in batched_inputs]
+        else:
+            image_wcs = None
+
+        images = self.preprocess_image(batched_inputs)
+        features = self.backbone(images.tensor)
+
+        if detected_instances is None:
+            if self.proposal_generator is not None:
+                proposals, _ = self.proposal_generator(images, features, None)
+            else:
+                assert "proposals" in batched_inputs[0]
+                proposals = [x["proposals"].to(self.device) for x in batched_inputs]
+
+            results, _ = self.roi_heads(images, features, proposals, None, image_wcs=image_wcs)
+        else:
+            detected_instances = [x.to(self.device) for x in detected_instances]
+            results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
+
+        if do_postprocess:
+            assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
+            return self._postprocess(results, batched_inputs, images.image_sizes)
+        return results
+
+    def preprocess_image(self, batched_inputs: List[torch.Tensor]):
+        """
+        Normalize, pad and batch the input images.
+        """
+        images = [self._move_to_current_device(x) for x in batched_inputs]
+        images = torch.stack([(x - self.pixel_mean) / self.pixel_std for x in images])
+        #images = torch.tensor(images)
+        #images = ImageList.from_tensors(
+        #    images,
+        #    self.backbone.size_divisibility,
+        #    padding_constraints=self.backbone.padding_constraints,
+        #)
         return images
 
     @staticmethod
