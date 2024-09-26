@@ -1535,20 +1535,26 @@ class RedshiftProjectionHead(nn.Module):
     def __init__(self,input_shape):
         super().__init__()
         self.redshift_head = nn.Sequential(
-                nn.Linear(np.prod(input_shape), 1024),
-                nn.Tanh(),
-                nn.Linear(1024, 1)
-                #nn.Softplus()
+                nn.Linear(np.prod(input_shape), 128),
+                nn.PReLU(),
+                nn.Linear(128, 1),
+                #nn.ReLU()
             )
         
-    def forward(self, features, labels):    
+    def forward(self, features, labels=None):    
         features = nn.Flatten()(features)
         pred_z = self.redshift_head(features)
-        diff = (pred_z - labels)
-        return {"redshift_loss": torch.square(diff).mean()}
- 
 
-        
+        if self.training:
+            labels = labels.unsqueeze(1)
+            #print(pred_z[:,0])
+            diff = (pred_z - labels)
+            #print(diff)
+            return {"redshift_loss": torch.square(diff).mean()}
+
+        else:
+            return pred_z
+
         
         
 class RedshiftPointCasROIHeads(CascadeROIHeads):

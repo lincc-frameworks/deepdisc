@@ -342,14 +342,13 @@ class Backbone(nn.Module):
     
         losses = {}
         losses.update(loss)
+        #print(losses)
         
         return losses
 
     def inference(
         self,
-        batched_inputs: List[Dict[str, torch.Tensor]],
-        detected_instances: Optional[List[Instances]] = None,
-        do_postprocess: bool = True,
+        batched_inputs: List[Tuple[torch.Tensor, torch.Tensor]],
     ):
         """
         Run inference on the given inputs.
@@ -369,29 +368,18 @@ class Backbone(nn.Module):
             Otherwise, a list[Instances] containing raw network outputs.
         """
         assert not self.training
-        if "wcs" in batched_inputs[0]:
-            image_wcs = [x["wcs"] for x in batched_inputs]
-        else:
-            image_wcs = None
+        
+        images = torch.stack([d[0] for d in batched_inputs])
+        print(images.shape)
+        images = self.preprocess_image(images)
 
-        images = self.preprocess_image(batched_inputs)
-        features = self.backbone(images.tensor)
+        features = self.backbone(images)
+       
+        if self.feature_level is not None:
+            features = features[self.feature_level]
 
-        if detected_instances is None:
-            if self.proposal_generator is not None:
-                proposals, _ = self.proposal_generator(images, features, None)
-            else:
-                assert "proposals" in batched_inputs[0]
-                proposals = [x["proposals"].to(self.device) for x in batched_inputs]
-
-            results, _ = self.roi_heads(images, features, proposals, None, image_wcs=image_wcs)
-        else:
-            detected_instances = [x.to(self.device) for x in detected_instances]
-            results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
-
-        if do_postprocess:
-            assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
-            return self._postprocess(results, batched_inputs, images.image_sizes)
+        results = self.projection_head(features)
+        
         return results
 
     def preprocess_image(self, batched_inputs: List[torch.Tensor]):
