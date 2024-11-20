@@ -190,7 +190,11 @@ class LossEvalHook(HookBase):
 
     def _get_loss(self, data):
         # How loss is calculated on train_loop
-        metrics_dict = self._model(data)
+        try:
+            metrics_dict = self._model(data)
+        except:
+            print("Check the size of the images in the validation set")
+            return 0
         metrics_dict = {
             k: v.detach().cpu().item() if isinstance(v, torch.Tensor) else float(v)
             for k, v in metrics_dict.items()
