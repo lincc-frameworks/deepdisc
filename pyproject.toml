@@ -22,7 +22,7 @@ dependencies = [
 [metadata]
 description = "Deep learning for astronomical image processing using detectron2."
 long_description = { file = "README.md" }
-url = "https://github.com/lincc-frameworks/deepdisc"
+url = "https://github.com/grantmerz/deepdisc"
 
 # On a mac, install optional dependencies with `pip install '.[dev]'` (include the single quotes)
 [project.optional-dependencies]
