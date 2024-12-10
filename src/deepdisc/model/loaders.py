@@ -857,10 +857,12 @@ class RedshiftDictMapperJWST(DataMapper):
     
 
 class ImageZDataset(Dataset):
-    def __init__(self, path, group='data',augmentations=None):
+    def __init__(self, path, group='data',redshift_key='redshift',image_key='image',augmentations=None):
         self.path = path
         self.group=group
         self.augmentations = augmentations
+        self.redshift_key = redshift_key
+        self.image_key = image_key
         #self._open_file()
 
 
@@ -870,14 +872,22 @@ class ImageZDataset(Dataset):
 
     def __len__(self):
         with h5py.File(self.path, 'r') as _f:
-          size = len(_f[self.group]['redshift'])
-          #size = _f
+            if self.group is None:
+                size = len(_f[self.redshift_key])
+            else:
+                size = len(_f[self.group][self.redshift_key])
+
         return size
 
     def __getitem__(self, idx):
         self._open_file()
-        image = self.file[self.group]['image'][idx]
-        redshift = self.file[self.group]['redshift'][idx]
+        if self.group is None:
+            image = self.file[self.image_key][idx]
+            redshift = self.file[self.redshift_key][idx]
+
+        else:
+            image = self.file[self.group][self.image_key][idx]
+            redshift = self.file[self.group][self.redshift_key][idx]
         #print(len(self.transform(image)))
         self.file.close()
         if self.augmentations is not None:
