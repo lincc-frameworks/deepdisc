@@ -9,3 +9,4 @@ matplotlib
 numpy
 torch
 torchvision
+pybind11
