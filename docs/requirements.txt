@@ -7,3 +7,5 @@ jupytext
 jupyter
 matplotlib
 numpy
+torch
+torchvision
