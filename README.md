@@ -16,14 +16,14 @@ DeepDISC is a deep learning framework for efficiently performing source detectio
 
 ## Installation:
 
-1) Create a conda environment.  We recommend using python 3.9.  You can use the environment.yml file provided and run
-   `conda env create -f environment.yml`
+1) Create a conda environment.  We recommend using python 3.9.  You can use the environment.yml file provided and run  
+   `conda env create -f environment.yml`  
 
-or create an environment from scratch and install by hand the packages listed in the environment.yml file
+or create an environment from scratch and install by hand the packages listed in the environment.yml file  
 
-2) Install deepdisc with
-   `pip install deepdisc`
-   You can also install by cloning this repo and running `pip install [e].`  [e] is optional and will install in editable mode.  Use if you are going to change the source code
+2) Install deepdisc with  
+   `pip install deepdisc`  
+   You can also install by cloning this repo and running `pip install [e].`  [e] is optional and will install in editable mode.  Use if you are going to change the source code  
 
 Usage:
 ```
