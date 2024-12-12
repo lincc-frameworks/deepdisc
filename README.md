@@ -14,11 +14,16 @@ This is an updated repo of the original implementation (https://github.com/burke
 
 DeepDISC is a deep learning framework for efficiently performing source detection, classification, and segmnetation (deblending) on astronomical images.  We have built the code using detectron2 https://detectron2.readthedocs.io/en/latest/ for a modular design an access to state-of-the-art models. 
 
-Setup:
+## Installation:
 
-conda env create -f environment.yml
+1) Create a conda environment.  We recommend using python 3.9.  You can use the environment.yml file provided and run  
+   `conda env create -f environment.yml`  
 
-You will also need to install [scarlet](https://pmelchior.github.io/scarlet/install.html) and [detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html). Building from the source is recommended for both
+or create an environment from scratch and install by hand the packages listed in the environment.yml file  
+
+2) Install deepdisc with  
+   `pip install deepdisc`  
+   You can also install by cloning this repo and running `pip install [e].`  [e] is optional and will install in editable mode.  Use if you are going to change the source code  
 
 Usage:
 ```

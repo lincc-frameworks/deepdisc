@@ -7,3 +7,6 @@ jupytext
 jupyter
 matplotlib
 numpy
+torch
+torchvision
+pybind11

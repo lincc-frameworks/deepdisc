@@ -29,12 +29,11 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
+        sudo apt install libopenmpi-dev
         python -m pip install --upgrade pip
-        pip install .
-        pip install 'git+https://github.com/facebookresearch/detectron2.git@80307d2d5e06f06a8a677cc2653f23a4c56402ac'
-        pip install 'git+https://github.com/pmelchior/scarlet.git'
-        pip install .[dev]
         if [ -f docs/requirements.txt ]; then pip install -r docs/requirements.txt; fi
+        pip install .
+        pip install .[dev]
     - name: Install notebook requirements
       run: |
         sudo apt-get install pandoc
