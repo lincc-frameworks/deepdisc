@@ -17,6 +17,20 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "numpy<2.0",
+    "scipy",
+    "pandas",
+    "grpcio",
+    "h5py",
+    "mpi4py",
+    "astropy",
+    "pybind11",
+    "imgaug",
+    "proxmin",
+    "peigen",
+    "autograd",
+    "timm",
+    "scarlet@git+https://github.com/pmelchior/scarlet.git",
 ]
 
 [metadata]
